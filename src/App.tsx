@@ -10,6 +10,7 @@ import ArtPage from "./pages/ArtPage";
 import MusicPage from "./pages/MusicPage";
 import NotFound from "./pages/NotFound";
 
+// Crear instancia de QueryClient
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -18,12 +19,14 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        {/* Configuración del BrowserRouter con basename para la subcarpeta */}
+        <BrowserRouter basename="/LaCueva">
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/juegos" element={<GamesPage />} />
             <Route path="/arte" element={<ArtPage />} />
             <Route path="/musica" element={<MusicPage />} />
+            {/* Puedes agregar más rutas si lo necesitas */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
