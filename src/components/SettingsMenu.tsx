@@ -1,13 +1,14 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { useSettings, ThemeColor, MusicType, Language } from '@/contexts/SettingsContext';
-import { X, Settings, Palette, Globe, Music, Volume2, VolumeX } from 'lucide-react';
+import { useSettings, ThemeColor, BackgroundMusicType, Language } from '@/contexts/SettingsContext';
+import { X, Settings, Palette, Globe, Music, Volume2, VolumeX, AlertCircle } from 'lucide-react';
 
 interface SettingsMenuProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// Solo una declaración de themes
 const themes: { id: ThemeColor; name: string; nameEn: string; colors: string }[] = [
   { id: 'default', name: 'Neón Oscuro', nameEn: 'Dark Neon', colors: 'from-neon-pink via-neon-cyan to-neon-purple' },
   { id: 'ocean', name: 'Océano Profundo', nameEn: 'Deep Ocean', colors: 'from-blue-500 via-cyan-500 to-teal-500' },
@@ -16,22 +17,22 @@ const themes: { id: ThemeColor; name: string; nameEn: string; colors: string }[]
   { id: 'galaxy', name: 'Galaxia', nameEn: 'Galaxy', colors: 'from-purple-500 via-indigo-500 to-blue-500' },
 ];
 
-const musicOptions: { id: MusicType; nameEs: string; nameEn: string; icon: string }[] = [
+// Solo una declaración de bgMusicOptions
+const bgMusicOptions: { id: BackgroundMusicType; nameEs: string; nameEn: string; icon: string }[] = [
   { id: 'none', nameEs: 'Sin música', nameEn: 'No music', icon: '🔇' },
-  { id: 'lofi', nameEs: 'Lo-Fi Chill', nameEn: 'Lo-Fi Chill', icon: '🎧' },
-  { id: 'relaxed', nameEs: 'Relajada', nameEn: 'Relaxed', icon: '🌊' },
-  { id: 'indie', nameEs: 'Indie', nameEn: 'Indie', icon: '🎸' },
-  { id: 'soft-rock', nameEs: 'Rock Suave', nameEn: 'Soft Rock', icon: '🎵' },
-  { id: 'pop', nameEs: 'Pop', nameEn: 'Pop', icon: '🎤' },
+  { id: 'lofi', nameEs: 'Lo-Fi Relajante', nameEn: 'Lo-Fi Relaxing', icon: '🎧' },
+  { id: 'vib-ribbon', nameEs: 'Vib-Ribbon', nameEn: 'Vib-Ribbon', icon: '🎮' },
+  { id: 'zelda', nameEs: 'Zelda Theme', nameEn: 'Zelda Theme', icon: '🗡️' },
 ];
 
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) => {
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
   const { 
     theme, setTheme, 
-    music, setMusic, 
+    backgroundMusic, setBackgroundMusic, 
     language, setLanguage,
-    isMusicPlaying, toggleMusic,
+    isBgMusicPlaying, toggleBgMusic,
+    bgMusicVolume, setBgMusicVolume,
     t 
   } = useSettings();
 
@@ -58,14 +59,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
     setTheme(newTheme);
   };
 
-  const handleMusicChange = (newMusic: MusicType) => {
+  const handleMusicChange = (newMusic: BackgroundMusicType) => {
     playClick();
-    setMusic(newMusic);
+    setBackgroundMusic(newMusic);
   };
 
   const handleLanguageChange = (lang: Language) => {
     playClick();
     setLanguage(lang);
+  };
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value) / 100;
+    setBgMusicVolume(value);
   };
 
   if (!isOpen) return null;
@@ -76,7 +82,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-lg game-card relative animate-bounce-in overflow-hidden"
+        className="w-full max-w-lg game-card relative animate-bounce-in overflow-hidden max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         style={{
           backgroundImage: 'linear-gradient(135deg, hsl(var(--night-deep)) 0%, hsl(var(--muted)) 100%)',
@@ -84,7 +90,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
           boxShadow: '0 0 30px hsl(var(--neon-cyan) / 0.3), inset 0 0 60px hsl(var(--neon-purple) / 0.1)'
         }}
       >
-        {/* RPG Menu Header */}
+        {/* Cabecera del menú */}
         <div className="relative -m-4 mb-4 p-4 bg-gradient-to-r from-neon-pink/30 via-neon-cyan/30 to-neon-purple/30 border-b-4 border-neon-cyan">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -103,7 +109,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             </button>
           </div>
           
-          {/* Decorative corners */}
+          {/* Esquinas decorativas */}
           <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-star-gold" />
           <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-star-gold" />
           <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-star-gold" />
@@ -111,7 +117,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
         </div>
 
         <div className="space-y-6">
-          {/* Language Section */}
+          {/* Sección de idioma */}
           <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-neon-cyan transition-colors">
             <div className="flex items-center gap-2 mb-3">
               <Globe size={18} className="text-neon-cyan" />
@@ -136,7 +142,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             </div>
           </div>
 
-          {/* Theme Section */}
+          {/* Sección de tema */}
           <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-neon-pink transition-colors">
             <div className="flex items-center gap-2 mb-3">
               <Palette size={18} className="text-neon-pink" />
@@ -164,38 +170,48 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             </div>
           </div>
 
-          {/* Music Section */}
+          {/* Sección de música de fondo */}
           <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-star-gold transition-colors">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Music size={18} className="text-star-gold" />
                 <h3 className="font-pixel text-[10px] text-accent">
-                  {t('settings.music')}
+                  {t('settings.bgMusic')}
                 </h3>
               </div>
               
-              {music !== 'none' && (
+              {backgroundMusic !== 'none' && (
                 <button
-                  onClick={() => { playClick(); toggleMusic(); }}
+                  onClick={() => { playClick(); toggleBgMusic(); }}
                   onMouseEnter={playHover}
                   className={`p-2 rounded-sm border-2 transition-all ${
-                    isMusicPlaying 
+                    isBgMusicPlaying 
                       ? 'bg-star-gold/30 border-star-gold text-star-gold' 
                       : 'border-border text-muted-foreground hover:border-neon-pink'
                   }`}
                 >
-                  {isMusicPlaying ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  {isBgMusicPlaying ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {musicOptions.map((musicOption) => (
+
+            {/* Info de música apagada por defecto */}
+            <div className="flex items-center gap-2 mb-3 p-2 bg-night-deep/50 rounded border border-star-gold/30">
+              <AlertCircle size={14} className="text-star-gold flex-shrink-0" />
+              <span className="font-retro text-xs text-muted-foreground">
+                {t('settings.musicOff')}
+              </span>
+            </div>
+
+            {/* Opciones de música */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {bgMusicOptions.map((musicOption) => (
                 <button
                   key={musicOption.id}
                   onClick={() => handleMusicChange(musicOption.id)}
                   onMouseEnter={playHover}
                   className={`p-2 rounded-sm border-2 transition-all flex items-center gap-2
-                    ${music === musicOption.id 
+                    ${backgroundMusic === musicOption.id 
                       ? 'bg-star-gold/20 border-star-gold shadow-[0_0_10px_rgba(255,215,0,0.3)]' 
                       : 'border-border hover:border-neon-pink'}`}
                 >
@@ -206,9 +222,39 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
                 </button>
               ))}
             </div>
+
+            {/* Slider de volumen */}
+            {backgroundMusic !== 'none' && (
+              <div className="pt-3 border-t border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-retro text-sm text-muted-foreground">
+                    {t('settings.volume')}
+                  </span>
+                  <span className="font-pixel text-[9px] text-star-gold">
+                    {Math.round(bgMusicVolume * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="20"
+                  value={Math.round(bgMusicVolume * 100)}
+                  onChange={handleVolumeChange}
+                  className="w-full h-2 bg-muted rounded-full appearance-none cursor-pointer
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
+                    [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full 
+                    [&::-webkit-slider-thumb]:bg-star-gold [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(255,215,0,0.5)]
+                    [&::-webkit-slider-thumb]:cursor-pointer"
+                />
+                <div className="flex justify-between mt-1">
+                  <span className="font-retro text-xs text-muted-foreground/50">0%</span>
+                  <span className="font-retro text-xs text-muted-foreground/50">20% máx</span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Footer */}
+          {/* Pie de página */}
           <div className="flex items-center justify-center gap-4 pt-4 border-t-2 border-dashed border-border">
             <div className="font-retro text-sm text-muted-foreground flex items-center gap-1">
               <span className="text-neon-cyan">♦</span>
@@ -218,6 +264,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
           </div>
         </div>
 
+        {/* Pie de página inferior */}
         <div className="absolute bottom-2 left-2 text-muted-foreground/30 font-pixel text-[8px]">
           {t('settings.exit')}
         </div>

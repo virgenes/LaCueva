@@ -9,6 +9,7 @@ import { SiteUpdates } from '@/components/SiteUpdates';
 import { Footer } from '@/components/Footer';
 import { StarBackground } from '@/components/StarBackground';
 import { MusicPlayer } from '@/components/MusicPlayer';
+import { MusicNotification } from '@/components/MusicNotification';
 
 const Index = () => {
   return (
@@ -49,6 +50,9 @@ const Index = () => {
           backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)'
         }} />
       </div>
+
+      {/* Music notification popup */}
+      <MusicNotification />
     </div>
   );
 };
