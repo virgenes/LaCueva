@@ -67,7 +67,7 @@ export const AVAILABLE_GENRES = [
 
 // Lista de plataformas disponibles
 export const AVAILABLE_PLATFORMS = [
-  "PC", "SWITCH", "ANDROID", "PS2", "WII", "GAMECUBE", "STEAM", "PLAY_STORE"
+  "PC", "SWITCH", "ANDROID", "PS2", "PS1", "WII", "GAMECUBE", "STEAM"
 ];
 
 // ============================================================
@@ -470,7 +470,7 @@ export const games: Game[] = [
     title: "VIB-RIBBON",
     cover: "https://i.imgur.com/xBdYr6U.png",
     genres: ["RITMO"],
-    platforms: ["PS2"],
+    platforms: ["PS1"],
     downloads: {
       PS2: [
         { name: "Romsfun", url: "https://sto1.romsforever.co/0:/PSX-CHD/Vib-Ribbon%20(Europe)%20(EnFrDeEsIt).chd?token=cH1ZalNgXU9HEG91XnYdYV9XQxlxfV59VQ%3D%3D" },
