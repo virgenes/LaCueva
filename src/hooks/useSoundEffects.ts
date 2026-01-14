@@ -94,5 +94,39 @@ export const useSoundEffects = () => {
     oscillator.stop(audioContext.currentTime + 0.15);
   }, []);
 
-  return { playClick, playHover, playSuccess, playMenuOpen };
+  // Zelda secret discovery sound effect
+  const playSecretDiscovered = useCallback(() => {
+    const audioContext = createAudioContext();
+    if (!audioContext) return;
+
+    // Zelda "secret discovered" melody notes: G4, A4, B4, C5, D5, E5 ascending
+    const notes = [
+      { freq: 392.00, time: 0 },      // G4
+      { freq: 440.00, time: 0.08 },   // A4
+      { freq: 493.88, time: 0.16 },   // B4
+      { freq: 523.25, time: 0.24 },   // C5
+      { freq: 587.33, time: 0.32 },   // D5
+      { freq: 659.25, time: 0.40 },   // E5
+      { freq: 783.99, time: 0.50 },   // G5 - final high note
+    ];
+
+    notes.forEach(({ freq, time }) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + time);
+      
+      gainNode.gain.setValueAtTime(0.15, audioContext.currentTime + time);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.12);
+
+      oscillator.start(audioContext.currentTime + time);
+      oscillator.stop(audioContext.currentTime + time + 0.12);
+    });
+  }, []);
+
+  return { playClick, playHover, playSuccess, playMenuOpen, playSecretDiscovered };
 };

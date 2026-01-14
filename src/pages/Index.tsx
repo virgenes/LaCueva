@@ -10,6 +10,7 @@ import { Footer } from '@/components/Footer';
 import { StarBackground } from '@/components/StarBackground';
 import { MusicPlayer } from '@/components/MusicPlayer';
 import { MusicNotification } from '@/components/MusicNotification';
+import { KonamiEasterEgg } from '@/components/KonamiEasterEgg';
 
 const Index = () => {
   return (
@@ -53,6 +54,9 @@ const Index = () => {
 
       {/* Music notification popup */}
       <MusicNotification />
+
+      {/* Konami-style Easter Egg - Type "VIRGEN" to activate */}
+      <KonamiEasterEgg />
     </div>
   );
 };
