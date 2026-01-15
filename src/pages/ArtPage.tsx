@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GameCard } from '@/components/GameCard';
 import { RetroButton } from '@/components/RetroButton';
 import { StarBackground } from '@/components/StarBackground';
+import { SearchBar } from '@/components/SearchBar';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { X, ZoomIn, ArrowLeft } from 'lucide-react';
 
@@ -20,17 +21,29 @@ interface Artwork {
   artist: string;
   image: string;
   description?: string;
+  tags?: string[];
 }
 
 const artworks: Artwork[] = [
   // Ejemplo:
-  // { id: 1, title: "Mi Dibujo", artist: "Maximo", image: "/art/mi-dibujo.png", description: "Arte épico" },
+  // { id: 1, title: "Mi Dibujo", artist: "Maximo", image: "/art/mi-dibujo.png", description: "Arte épico", tags: ["digital", "furry"] },
 ];
 
 const ArtPage: React.FC = () => {
   const navigate = useNavigate();
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
   const [selectedArt, setSelectedArt] = useState<Artwork | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredArtworks = useMemo(() => {
+    if (!searchQuery) return artworks;
+    return artworks.filter(art => 
+      art.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      art.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      art.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      art.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+  }, [searchQuery]);
 
   const hasArt = artworks.length > 0;
 
@@ -53,9 +66,17 @@ const ArtPage: React.FC = () => {
             🎨 GALERÍA DE ARTE 🎨
           </h1>
 
+          {/* Buscador */}
+          <SearchBar 
+            placeholder="🔍 Buscar arte por título, artista, tags..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="mb-6"
+          />
+
           {hasArt ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {artworks.map((art) => (
+              {filteredArtworks.map((art) => (
                 <div
                   key={art.id}
                   onClick={() => { playMenuOpen(); setSelectedArt(art); }}

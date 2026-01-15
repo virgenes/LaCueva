@@ -434,7 +434,7 @@ export const games: Game[] = [
     title: "BEATBLOCK",
     cover: "https://i.imgur.com/qp1F3wb.png",
     genres: ["RITMO"],
-    platforms: ["PC"],
+    platforms: ["PC", "STEAM"],
     downloads: {
       DEMO: [
         { name: "Demo (Itch.io)", url: "https://bubbletabby.itch.io/beatblock" },

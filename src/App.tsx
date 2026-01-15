@@ -6,6 +6,7 @@ import { HashRouter, Routes, Route } from "react-router-dom"; // Manteniendo Has
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { YouTubeMusicProvider } from "@/contexts/YouTubeMusicContext";
 import { YouTubePlayer } from "@/components/YouTubePlayer";
+import { CustomCursor } from "@/components/CustomCursor";
 
 import Index from "./pages/Index";
 import GamesPage from "./pages/GamesPage";
@@ -22,6 +23,8 @@ const App = () => (
     <YouTubeMusicProvider>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          {/* Añadiendo CustomCursor */}
+          <CustomCursor />
           <Toaster />
           <Sonner />
           {/* Mantener HashRouter */}

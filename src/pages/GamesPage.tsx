@@ -4,6 +4,7 @@ import { GameCard } from '@/components/GameCard';
 import { RetroButton } from '@/components/RetroButton';
 import { StarBackground } from '@/components/StarBackground';
 import { ExternalLinkDialog } from '@/components/ExternalLinkDialog';
+import { SearchBar } from '@/components/SearchBar';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
 import { games, AVAILABLE_GENRES, AVAILABLE_PLATFORMS, Game } from '@/data/gamesData';
@@ -20,14 +21,19 @@ const GamesPage = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
   const [externalLink, setExternalLink] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredGames = useMemo(() => {
     return games.filter(game => {
       const matchesGenre = selectedGenre === 'all' || game.genres.includes(selectedGenre);
       const matchesPlatform = selectedPlatform === 'all' || game.platforms.includes(selectedPlatform);
-      return matchesGenre && matchesPlatform;
+      const matchesSearch = searchQuery === '' || 
+        game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        game.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        game.genres.some(g => g.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchesGenre && matchesPlatform && matchesSearch;
     });
-  }, [selectedGenre, selectedPlatform]);
+  }, [selectedGenre, selectedPlatform, searchQuery]);
 
   const totalPages = Math.ceil(filteredGames.length / GAMES_PER_PAGE);
   const paginatedGames = filteredGames.slice((currentPage - 1) * GAMES_PER_PAGE, currentPage * GAMES_PER_PAGE);
@@ -64,37 +70,45 @@ const GamesPage = () => {
             🎮 {t('section.games')} 🎮
           </h1>
 
-          {/* Filtros */}
-          <div className="flex flex-wrap gap-3 mb-6 p-4 bg-gradient-to-r from-muted/40 to-muted/20 rounded-sm border-2 border-neon-cyan/30">
-            <div className="flex items-center gap-2">
-              <Filter size={16} className="text-neon-cyan" />
-              <span className="font-pixel text-[7px] text-accent">{t('games.genre')}:</span>
-              <select 
-                value={selectedGenre}
-                onChange={(e) => { playClick(); setSelectedGenre(e.target.value); setCurrentPage(1); }}
-                className="bg-night-deep text-foreground font-retro text-sm px-2 py-1 rounded-sm border-2 border-neon-cyan focus:outline-none focus:border-neon-pink cursor-pointer"
-              >
-                <option value="all">{t('games.all')}</option>
-                {AVAILABLE_GENRES.map(genre => <option key={genre} value={genre}>{genre}</option>)}
-              </select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Gamepad2 size={16} className="text-neon-pink" />
-              <span className="font-pixel text-[7px] text-accent">{t('games.platform')}:</span>
-              <select 
-                value={selectedPlatform}
-                onChange={(e) => { playClick(); setSelectedPlatform(e.target.value); setCurrentPage(1); }}
-                className="bg-night-deep text-foreground font-retro text-sm px-2 py-1 rounded-sm border-2 border-neon-pink focus:outline-none focus:border-neon-cyan cursor-pointer"
-              >
-                <option value="all">{t('games.all')}</option>
-                {AVAILABLE_PLATFORMS.map(platform => <option key={platform} value={platform}>{platform}</option>)}
-              </select>
-            </div>
+          {/* Buscador y Filtros */}
+          <div className="space-y-3 mb-6">
+            <SearchBar 
+              placeholder="🔍 Buscar juegos por nombre, género..."
+              value={searchQuery}
+              onChange={(value) => { setSearchQuery(value); setCurrentPage(1); }}
+            />
 
-            <div className="font-retro text-sm text-star-gold ml-auto flex items-center gap-2">
-              <span className="animate-pulse">⭐</span>
-              {filteredGames.length} {t('games.found')}
+            <div className="flex flex-wrap gap-3 p-4 bg-gradient-to-r from-muted/40 to-muted/20 rounded-sm border-2 border-neon-cyan/30">
+              <div className="flex items-center gap-2">
+                <Filter size={16} className="text-neon-cyan" />
+                <span className="font-pixel text-[7px] text-accent">{t('games.genre')}:</span>
+                <select 
+                  value={selectedGenre}
+                  onChange={(e) => { playClick(); setSelectedGenre(e.target.value); setCurrentPage(1); }}
+                  className="bg-night-deep text-foreground font-retro text-sm px-2 py-1 rounded-sm border-2 border-neon-cyan focus:outline-none focus:border-neon-pink cursor-pointer"
+                >
+                  <option value="all">{t('games.all')}</option>
+                  {AVAILABLE_GENRES.map(genre => <option key={genre} value={genre}>{genre}</option>)}
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Gamepad2 size={16} className="text-neon-pink" />
+                <span className="font-pixel text-[7px] text-accent">{t('games.platform')}:</span>
+                <select 
+                  value={selectedPlatform}
+                  onChange={(e) => { playClick(); setSelectedPlatform(e.target.value); setCurrentPage(1); }}
+                  className="bg-night-deep text-foreground font-retro text-sm px-2 py-1 rounded-sm border-2 border-neon-pink focus:outline-none focus:border-neon-cyan cursor-pointer"
+                >
+                  <option value="all">{t('games.all')}</option>
+                  {AVAILABLE_PLATFORMS.map(platform => <option key={platform} value={platform}>{platform}</option>)}
+                </select>
+              </div>
+
+              <div className="font-retro text-sm text-star-gold ml-auto flex items-center gap-2">
+                <span className="animate-pulse">⭐</span>
+                {filteredGames.length} {t('games.found')}
+              </div>
             </div>
           </div>
 

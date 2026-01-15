@@ -1,7 +1,9 @@
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GameCard } from '@/components/GameCard';
 import { RetroButton } from '@/components/RetroButton';
 import { StarBackground } from '@/components/StarBackground';
+import { SearchBar } from '@/components/SearchBar';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useYouTubeMusic } from '@/contexts/YouTubeMusicContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -20,6 +22,15 @@ const MusicPage = () => {
     togglePlay,
     setVolume 
   } = useYouTubeMusic();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredPlaylist = useMemo(() => {
+    if (!searchQuery) return playlist;
+    return playlist.filter(track => 
+      track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      track.artist.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [playlist, searchQuery]);
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVolume(parseInt(e.target.value));
@@ -106,6 +117,14 @@ const MusicPage = () => {
             </div>
           )}
 
+          {/* Buscador */}
+          <SearchBar 
+            placeholder="🔍 Buscar canciones o artistas..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            className="mb-4"
+          />
+
           {/* Playlist Header */}
           <div className="flex items-center gap-2 mb-4 pb-2 border-b-2 border-dashed border-border">
             <Music size={18} className="text-star-gold" />
@@ -113,13 +132,13 @@ const MusicPage = () => {
               {t('music.playlist')}
             </h2>
             <span className="ml-auto font-retro text-sm text-muted-foreground">
-              {playlist.length} tracks
+              {filteredPlaylist.length} tracks
             </span>
           </div>
 
           {/* Track List */}
           <div className="space-y-2">
-            {playlist.map((track, index) => (
+            {filteredPlaylist.map((track, index) => (
               <div
                 key={track.id}
                 onClick={() => { playClick(); playTrack(track); }}
