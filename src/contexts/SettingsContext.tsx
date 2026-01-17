@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
+// ============================================================
+// IMPORTACIÓN DE MÚSICA (Desde src/assets/music)
+// ============================================================
+import zeldaTheme from '@/assets/music/zelda-theme.opus';
+import lofiTrack from '@/assets/music/lofi-relaxing.opus';
+import vibRibbon from '@/assets/music/vib-ribbon.opus';
+
 export type ThemeColor = 'default' | 'ocean' | 'forest' | 'sunset' | 'galaxy';
 export type BackgroundMusicType = 'none' | 'lofi' | 'vib-ribbon' | 'zelda';
 export type Language = 'es' | 'en';
@@ -76,11 +83,14 @@ const THEME_VARIABLES: Record<ThemeColor, Record<string, string>> = {
   galaxy: { '--neon-cyan': '270 100% 60%', '--neon-pink': '300 100% 60%', '--neon-purple': '260 80% 55%', '--star-gold': '280 100% 70%', '--primary': '270 100% 60%', '--secondary': '300 100% 60%', '--accent': '290 100% 65%' },
 };
 
+// ============================================================
+// MAPA DE ARCHIVOS DE MÚSICA (Usando las variables importadas)
+// ============================================================
 const MUSIC_FILES: Record<BackgroundMusicType, string> = {
   none: '',
-  lofi: '/music/lofi-relaxing.opus',
-  'vib-ribbon': '/music/vib-ribbon.opus',
-  zelda: '/music/zelda-theme.opus',
+  lofi: lofiTrack,
+  'vib-ribbon': vibRibbon,
+  zelda: zeldaTheme,
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -132,10 +142,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       audioRef.current.volume = bgMusicVolume;
     } else {
       audioRef.current.src = musicFile;
+      // Si cambiamos de canción y ya estaba sonando algo, reproducimos la nueva
+      if (isBgMusicPlaying) {
+        audioRef.current.play().catch(() => setIsBgMusicPlaying(false));
+      }
     }
-  }, [backgroundMusic]);
+  }, [backgroundMusic]); // Quitamos bgMusicVolume e isBgMusicPlaying de aquí para evitar reinicios
 
-  // Update volume
+  // Update volume separately
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = bgMusicVolume;
@@ -148,11 +162,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setBackgroundMusic = useCallback((newMusic: BackgroundMusicType) => {
+    // Si cambiamos la música, pausamos la actual si existía
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current = null;
+      // No reseteamos a null aquí para permitir que el useEffect maneje el cambio de src
     }
     setBackgroundMusicState(newMusic);
+    // Nota: El useEffect se encargará de cargar el nuevo audio
+    // Mantenemos el estado de reproducción en false hasta que el usuario decida activarlo explícitamente
+    // o si vienes de MusicNotification que llama a toggleBgMusic después
     setIsBgMusicPlaying(false);
   }, []);
 
@@ -163,13 +181,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       audioRef.current?.pause();
       setIsBgMusicPlaying(false);
     } else {
+      // Crear instancia si no existe (caso borde)
       if (!audioRef.current) {
         audioRef.current = new Audio(MUSIC_FILES[backgroundMusic]);
         audioRef.current.loop = true;
         audioRef.current.volume = bgMusicVolume;
       }
-      audioRef.current.play().catch(() => {});
-      setIsBgMusicPlaying(true);
+      audioRef.current.play()
+        .then(() => setIsBgMusicPlaying(true))
+        .catch(() => setIsBgMusicPlaying(false));
     }
   }, [backgroundMusic, isBgMusicPlaying, bgMusicVolume]);
 
