@@ -4,6 +4,8 @@ import { GameCard } from '@/components/GameCard';
 import { RetroButton } from '@/components/RetroButton';
 import { StarBackground } from '@/components/StarBackground';
 import { SearchBar } from '@/components/SearchBar';
+import { MobileLayout } from '@/components/MobileLayout';
+import { PageTransition } from '@/components/PageTransition';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useYouTubeMusic } from '@/contexts/YouTubeMusicContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -37,10 +39,80 @@ const MusicPage = () => {
   };
 
   return (
+    <PageTransition>
     <div className="min-h-screen relative">
       <StarBackground />
       
-      <div className="relative z-10 max-w-4xl mx-auto px-4 py-6">
+      {/* Mobile Layout */}
+      <MobileLayout>
+        <div className="px-4 py-4 space-y-4">
+          <GameCard hoverable={false}>
+            <h1 className="font-pixel text-base text-primary mb-4 text-center neon-text">
+              🎵 {t('section.music')} 🎵
+            </h1>
+
+            {/* Mobile Now Playing */}
+            {currentTrack && (
+              <div className="p-3 bg-gradient-to-r from-neon-pink/20 to-neon-cyan/20 rounded-lg border-2 border-neon-pink mb-4">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={currentTrack.thumbnail} 
+                    alt={currentTrack.title}
+                    className="w-14 h-14 rounded-lg object-cover border border-neon-cyan"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-pixel text-[9px] text-accent truncate">{currentTrack.title}</p>
+                    <p className="font-retro text-sm text-muted-foreground truncate">{currentTrack.artist}</p>
+                  </div>
+                  <button
+                    onClick={() => { playClick(); togglePlay(); }}
+                    className="w-12 h-12 rounded-full bg-neon-pink flex items-center justify-center"
+                  >
+                    {isPlaying ? <Pause size={20} className="text-night-deep" /> : <Play size={20} className="text-night-deep ml-0.5" />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <SearchBar 
+              placeholder="🔍 Buscar música..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              className="mb-4"
+            />
+
+            {/* Mobile Track List */}
+            <div className="space-y-2">
+              {filteredPlaylist.map((track, index) => (
+                <div
+                  key={track.id}
+                  onClick={() => { playClick(); playTrack(track); }}
+                  className={`flex items-center gap-3 p-2 rounded-lg border-2 cursor-pointer transition-all
+                    ${currentTrack?.id === track.id 
+                      ? 'bg-neon-cyan/20 border-neon-cyan' 
+                      : 'bg-muted/30 border-border'}`}
+                >
+                  <img src={track.thumbnail} alt={track.title} className="w-10 h-10 rounded object-cover" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-pixel text-[8px] text-accent truncate">{track.title}</p>
+                    <p className="font-retro text-sm text-muted-foreground truncate">{track.artist}</p>
+                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentTrack?.id === track.id ? 'bg-neon-cyan' : 'bg-muted'}`}>
+                    {currentTrack?.id === track.id && isPlaying ? (
+                      <Pause size={12} className="text-night-deep" />
+                    ) : (
+                      <Play size={12} className={currentTrack?.id === track.id ? 'text-night-deep ml-0.5' : 'text-foreground ml-0.5'} />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </GameCard>
+        </div>
+      </MobileLayout>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:block relative z-10 max-w-4xl mx-auto px-4 py-6">
         <RetroButton 
           variant="pink"
           onClick={() => { playClick(); navigate('/'); }}
@@ -217,6 +289,7 @@ const MusicPage = () => {
         </GameCard>
       </div>
     </div>
+    </PageTransition>
   );
 };
 

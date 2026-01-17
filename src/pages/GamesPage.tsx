@@ -5,6 +5,8 @@ import { RetroButton } from '@/components/RetroButton';
 import { StarBackground } from '@/components/StarBackground';
 import { ExternalLinkDialog } from '@/components/ExternalLinkDialog';
 import { SearchBar } from '@/components/SearchBar';
+import { MobileLayout } from '@/components/MobileLayout';
+import { PageTransition } from '@/components/PageTransition';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
 import { games, AVAILABLE_GENRES, AVAILABLE_PLATFORMS, Game } from '@/data/gamesData';
@@ -57,10 +59,61 @@ const GamesPage = () => {
   };
 
   return (
+    <PageTransition>
     <div className="min-h-screen relative">
       <StarBackground />
       
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-6">
+      {/* Mobile Layout */}
+      <MobileLayout>
+        <div className="px-4 py-4">
+          <GameCard hoverable={false}>
+            <h1 className="font-pixel text-base text-primary mb-4 text-center neon-text">
+              🎮 {t('section.games')} 🎮
+            </h1>
+            
+            <SearchBar 
+              placeholder="🔍 Buscar juegos..."
+              value={searchQuery}
+              onChange={(value) => { setSearchQuery(value); setCurrentPage(1); }}
+              className="mb-4"
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              {paginatedGames.map((game) => (
+                <div
+                  key={game.id}
+                  onClick={() => openGameModal(game)}
+                  className="cursor-pointer bg-muted/30 rounded-sm border-2 border-border hover:border-neon-cyan transition-all"
+                >
+                  <div className="relative h-24 bg-night-deep/50 overflow-hidden rounded-t-sm">
+                    {game.cover && !game.cover.includes('placeholder') ? (
+                      <img src={game.cover} alt={game.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-3xl">🎮</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2">
+                    <h3 className="font-pixel text-[7px] text-accent line-clamp-2">{game.title}</h3>
+                    <span className="font-retro text-[10px] text-neon-cyan">{game.genres[0]}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredGames.length === 0 && (
+              <div className="text-center py-8">
+                <span className="text-5xl block animate-bounce">🎮</span>
+                <p className="font-pixel text-xs text-muted-foreground mt-2">No hay juegos</p>
+              </div>
+            )}
+          </GameCard>
+        </div>
+      </MobileLayout>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:block relative z-10 max-w-6xl mx-auto px-4 py-6">
         <RetroButton variant="cyan" onClick={() => navigate('/')} className="mb-4">
           <ArrowLeft size={14} className="mr-2" />{t('nav.back')}
         </RetroButton>
@@ -294,6 +347,7 @@ const GamesPage = () => {
         onConfirm={() => { window.open(externalLink || '', '_blank'); setExternalLink(null); }}
         onCancel={() => setExternalLink(null)} />
     </div>
+    </PageTransition>
   );
 };
 

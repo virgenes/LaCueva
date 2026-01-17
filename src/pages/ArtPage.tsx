@@ -4,6 +4,8 @@ import { GameCard } from '@/components/GameCard';
 import { RetroButton } from '@/components/RetroButton';
 import { StarBackground } from '@/components/StarBackground';
 import { SearchBar } from '@/components/SearchBar';
+import { MobileLayout } from '@/components/MobileLayout';
+import { PageTransition } from '@/components/PageTransition';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { X, ZoomIn, ArrowLeft } from 'lucide-react';
 
@@ -48,10 +50,50 @@ const ArtPage: React.FC = () => {
   const hasArt = artworks.length > 0;
 
   return (
+    <PageTransition>
     <div className="min-h-screen relative">
       <StarBackground />
       
-      <div className="relative z-10 max-w-5xl mx-auto px-4 py-6">
+      {/* Mobile Layout */}
+      <MobileLayout>
+        <div className="px-4 py-4">
+          <GameCard hoverable={false}>
+            <h1 className="font-pixel text-base text-primary mb-4 text-center neon-text">
+              🎨 GALERÍA DE ARTE 🎨
+            </h1>
+
+            <SearchBar 
+              placeholder="🔍 Buscar arte..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              className="mb-4"
+            />
+
+            {hasArt ? (
+              <div className="grid grid-cols-2 gap-3">
+                {filteredArtworks.map((art) => (
+                  <div
+                    key={art.id}
+                    onClick={() => { playMenuOpen(); setSelectedArt(art); }}
+                    className="cursor-pointer relative aspect-square bg-night-deep/50 rounded-sm border-2 border-border overflow-hidden hover:border-neon-pink transition-all"
+                  >
+                    <img src={art.image} alt={art.title} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <span className="text-6xl block animate-float mb-4">🖼️</span>
+                <p className="font-pixel text-xs text-muted-foreground">GALERÍA VACÍA</p>
+                <p className="font-retro text-sm text-muted-foreground mt-1">Próximamente...</p>
+              </div>
+            )}
+          </GameCard>
+        </div>
+      </MobileLayout>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:block relative z-10 max-w-5xl mx-auto px-4 py-6">
         <RetroButton 
           variant="pink"
           onClick={() => navigate('/')}
@@ -177,6 +219,7 @@ const ArtPage: React.FC = () => {
         </div>
       )}
     </div>
+    </PageTransition>
   );
 };
 

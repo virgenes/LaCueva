@@ -2,22 +2,36 @@ import React from 'react';
 import { Header } from '@/components/Header';
 import { Sidebar } from '@/components/Sidebar';
 import { AnnouncementCard } from '@/components/AnnouncementCard';
-import { Newsfeed } from '@/components/Newsfeed';
+import { SiteUpdates } from '@/components/SiteUpdates';
 import { ForYouSection } from '@/components/ForYouSection';
 import { AboutSection } from '@/components/AboutSection';
-import { SiteUpdates } from '@/components/SiteUpdates';
 import { Footer } from '@/components/Footer';
 import { StarBackground } from '@/components/StarBackground';
 import { MusicPlayer } from '@/components/MusicPlayer';
 import { MusicNotification } from '@/components/MusicNotification';
 import { KonamiEasterEgg } from '@/components/KonamiEasterEgg';
+import { MobileLayout } from '@/components/MobileLayout';
+import { PageTransition } from '@/components/PageTransition';
 
 const Index = () => {
   return (
-    <div className="min-h-screen relative">
+    <PageTransition>
+      <div className="min-h-screen relative">
       <StarBackground />
       
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-6">
+      {/* Mobile Layout */}
+      <MobileLayout>
+        <div className="px-4 py-4 space-y-4">
+          <AnnouncementCard />
+          <SiteUpdates />
+          <ForYouSection />
+          <AboutSection />
+          <Footer />
+        </div>
+      </MobileLayout>
+
+      {/* Desktop Layout */}
+      <div className="hidden md:block relative z-10 max-w-6xl mx-auto px-4 py-6">
         <Header />
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -30,7 +44,7 @@ const Index = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="lg:col-span-2">
                 <AnnouncementCard />
-                <Newsfeed />
+                <SiteUpdates />
               </div>
 
               <div className="lg:col-span-1">
@@ -39,7 +53,6 @@ const Index = () => {
             </div>
 
             <AboutSection />
-            <SiteUpdates />
           </main>
         </div>
 
@@ -58,6 +71,7 @@ const Index = () => {
       {/* Konami-style Easter Egg - Type "VIRGEN" to activate */}
       <KonamiEasterEgg />
     </div>
+    </PageTransition>
   );
 };
 
