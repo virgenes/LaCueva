@@ -1,45 +1,39 @@
 import React, { useEffect, useState } from 'react';
 
-// Cambio a CountAPI.it - Alternativa estable a la antigua .xyz
+// Intentaremos conectar a esta API, pero si falla, la página seguirá funcionando
 const NAMESPACE = 'la-cueva-virgenes';
 const KEY = 'unique-visitors-v1';
 
 export const VisitorCounter: React.FC = () => {
-  const [count, setCount] = useState<number | null>(null);
+  // Inicializamos con el valor guardado o uno por defecto (1234)
+  const [count, setCount] = useState<number>(() => {
+    const saved = localStorage.getItem('fallback-visitor-count');
+    return saved ? parseInt(saved) : 1234;
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const countVisitor = async () => {
       try {
         const hasVisited = sessionStorage.getItem('visitor-counted');
+        const mode = hasVisited ? 'get' : 'up';
         
-        // URL base actualizada a .it
-        let url = `https://api.countapi.it/hit/${NAMESPACE}/${KEY}`;
+        // El bloque try-catch asegura que si esta línea falla, no rompa la página
+        const response = await fetch(`https://counter.hygge.moe/${mode}/${NAMESPACE}-${KEY}`);
         
-        if (hasVisited) {
-          // Si ya se contó en esta sesión, solo obtenemos el valor actual
-          url = `https://api.countapi.it/get/${NAMESPACE}/${KEY}`;
-        }
-
-        const response = await fetch(url);
-        
-        if (!response.ok) throw new Error('Network response was not ok');
-        
-        const data = await response.json();
-        
-        if (data.value !== undefined) {
-          setCount(data.value);
-          if (!hasVisited) {
-            sessionStorage.setItem('visitor-counted', 'true');
-            // Guardamos en localStorage como backup por si el servicio cae en el futuro
-            localStorage.setItem('fallback-visitor-count', data.value.toString());
+        if (response.ok) {
+          const data = await response.json();
+          if (data && typeof data.count === 'number') {
+            setCount(data.count);
+            localStorage.setItem('fallback-visitor-count', data.count.toString());
           }
         }
-      } catch (error) {
-        console.warn('CountAPI.it no disponible, usando fallback local.');
-        // Recuperamos el último conteo exitoso guardado o un número base
-        const localCount = parseInt(localStorage.getItem('fallback-visitor-count') || '1234');
-        setCount(localCount);
+        
+        if (!hasVisited) {
+          sessionStorage.setItem('visitor-counted', 'true');
+        }
+      } catch (err) {
+        console.warn("Error de red en el contador: Trabajando en modo local.");
       } finally {
         setIsLoading(false);
       }
@@ -48,13 +42,8 @@ export const VisitorCounter: React.FC = () => {
     countVisitor();
   }, []);
 
-  const formatCount = (num: number | null): string[] => {
-    if (num === null) return ['0', '0', '0', '0', '0'];
-    const str = num.toString().padStart(5, '0');
-    return str.split('');
-  };
-
-  const digits = formatCount(count);
+  // Función de formateo segura
+  const digits = count.toString().padStart(5, '0').split('');
 
   return (
     <div className="game-card px-4 py-2 flex items-center gap-2">
@@ -65,18 +54,13 @@ export const VisitorCounter: React.FC = () => {
             key={i}
             className={`w-6 h-8 bg-night-deep border border-neon-cyan flex items-center justify-center 
               font-pixel text-sm text-neon-cyan transition-all duration-300
-              ${isLoading ? 'animate-pulse' : 'animate-none'}`}
-            style={{
-              animationDelay: `${i * 100}ms`
-            }}
+              ${isLoading ? 'animate-pulse' : ''}`}
           >
-            {isLoading ? '?' : digit}
+            {digit}
           </span>
         ))}
       </div>
-      {!isLoading && count !== null && (
-        <span className="text-star-gold animate-sparkle ml-1">⭐</span>
-      )}
+      {!isLoading && <span className="text-star-gold animate-sparkle ml-1">⭐</span>}
     </div>
   );
 };
