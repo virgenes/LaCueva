@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { VisitorCounter } from './VisitorCounter';
 import logoFurros from '@/assets/logo-furros.jpg';
 
 export const Footer: React.FC = () => {
@@ -16,19 +17,7 @@ export const Footer: React.FC = () => {
     <footer className="mt-8 relative">
       {/* Visitor counter */}
       <div className="flex justify-center mb-4">
-        <div className="game-card px-4 py-2 flex items-center gap-2">
-          <span className="font-retro text-lg text-muted-foreground">visitantes únicos:</span>
-          <div className="flex gap-1">
-            {['0', '0', '0', '0', '0'].map((digit, i) => (
-              <span 
-                key={i}
-                className="w-6 h-8 bg-night-deep border border-neon-cyan flex items-center justify-center font-pixel text-sm text-neon-cyan"
-              >
-                {digit}
-              </span>
-            ))}
-          </div>
-        </div>
+        <VisitorCounter />
       </div>
 
       {/* Social Links Banner */}

@@ -1,13 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
-// ============================================================
-// IMPORTACIÓN DE MÚSICA (Desde src/assets/music)
-// ============================================================
-import zeldaTheme from '@/assets/music/zelda-theme.opus';
-import lofiTrack from '@/assets/music/lofi-relaxing.opus';
-import vibRibbon from '@/assets/music/vib-ribbon.opus';
-
 export type ThemeColor = 'default' | 'ocean' | 'forest' | 'sunset' | 'galaxy';
 export type BackgroundMusicType = 'none' | 'lofi' | 'vib-ribbon' | 'zelda';
 export type Language = 'es' | 'en';
@@ -23,6 +16,8 @@ interface SettingsContextType {
   bgMusicVolume: number;
   setBgMusicVolume: (volume: number) => void;
   toggleBgMusic: () => void;
+  customCursorEnabled: boolean;
+  setCustomCursorEnabled: (enabled: boolean) => void;
   t: (key: string) => string;
 }
 
@@ -83,14 +78,11 @@ const THEME_VARIABLES: Record<ThemeColor, Record<string, string>> = {
   galaxy: { '--neon-cyan': '270 100% 60%', '--neon-pink': '300 100% 60%', '--neon-purple': '260 80% 55%', '--star-gold': '280 100% 70%', '--primary': '270 100% 60%', '--secondary': '300 100% 60%', '--accent': '290 100% 65%' },
 };
 
-// ============================================================
-// MAPA DE ARCHIVOS DE MÚSICA (Usando las variables importadas)
-// ============================================================
 const MUSIC_FILES: Record<BackgroundMusicType, string> = {
   none: '',
-  lofi: lofiTrack,
-  'vib-ribbon': vibRibbon,
-  zelda: zeldaTheme,
+  lofi: '/music/lofi-relaxing.opus',
+  'vib-ribbon': '/music/vib-ribbon.opus',
+  zelda: '/music/zelda-theme.opus',
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -99,6 +91,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('es');
   const [isBgMusicPlaying, setIsBgMusicPlaying] = useState(false);
   const [bgMusicVolume, setBgMusicVolumeState] = useState(0.2); // 20% max
+  const [customCursorEnabled, setCustomCursorEnabledState] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load saved settings
@@ -107,9 +100,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const savedTheme = localStorage.getItem('cave-theme') as ThemeColor;
       const savedLanguage = localStorage.getItem('cave-language') as Language;
       const savedVolume = localStorage.getItem('cave-bg-volume');
+      const savedCursor = localStorage.getItem('cave-custom-cursor');
       if (savedTheme && THEME_VARIABLES[savedTheme]) setThemeState(savedTheme);
       if (savedLanguage && translations[savedLanguage]) setLanguageState(savedLanguage);
       if (savedVolume) setBgMusicVolumeState(Math.min(parseFloat(savedVolume), 0.2));
+      if (savedCursor !== null) setCustomCursorEnabledState(savedCursor === 'true');
     } catch {}
   }, []);
 
@@ -142,14 +137,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       audioRef.current.volume = bgMusicVolume;
     } else {
       audioRef.current.src = musicFile;
-      // Si cambiamos de canción y ya estaba sonando algo, reproducimos la nueva
-      if (isBgMusicPlaying) {
-        audioRef.current.play().catch(() => setIsBgMusicPlaying(false));
-      }
     }
-  }, [backgroundMusic]); // Quitamos bgMusicVolume e isBgMusicPlaying de aquí para evitar reinicios
+  }, [backgroundMusic]);
 
-  // Update volume separately
+  // Update volume
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = bgMusicVolume;
@@ -162,15 +153,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setBackgroundMusic = useCallback((newMusic: BackgroundMusicType) => {
-    // Si cambiamos la música, pausamos la actual si existía
     if (audioRef.current) {
       audioRef.current.pause();
-      // No reseteamos a null aquí para permitir que el useEffect maneje el cambio de src
+      audioRef.current = null;
     }
     setBackgroundMusicState(newMusic);
-    // Nota: El useEffect se encargará de cargar el nuevo audio
-    // Mantenemos el estado de reproducción en false hasta que el usuario decida activarlo explícitamente
-    // o si vienes de MusicNotification que llama a toggleBgMusic después
     setIsBgMusicPlaying(false);
   }, []);
 
@@ -181,15 +168,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       audioRef.current?.pause();
       setIsBgMusicPlaying(false);
     } else {
-      // Crear instancia si no existe (caso borde)
       if (!audioRef.current) {
         audioRef.current = new Audio(MUSIC_FILES[backgroundMusic]);
         audioRef.current.loop = true;
         audioRef.current.volume = bgMusicVolume;
       }
-      audioRef.current.play()
-        .then(() => setIsBgMusicPlaying(true))
-        .catch(() => setIsBgMusicPlaying(false));
+      audioRef.current.play().catch(() => {});
+      setIsBgMusicPlaying(true);
     }
   }, [backgroundMusic, isBgMusicPlaying, bgMusicVolume]);
 
@@ -204,6 +189,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem('cave-language', newLanguage); } catch {}
   }, []);
 
+  const setCustomCursorEnabled = useCallback((enabled: boolean) => {
+    setCustomCursorEnabledState(enabled);
+    try { localStorage.setItem('cave-custom-cursor', enabled.toString()); } catch {}
+  }, []);
+
   const t = useCallback((key: string): string => translations[language][key] || key, [language]);
 
   return (
@@ -213,6 +203,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       language, setLanguage, 
       isBgMusicPlaying, toggleBgMusic,
       bgMusicVolume, setBgMusicVolume,
+      customCursorEnabled, setCustomCursorEnabled,
       t 
     }}>
       {children}
@@ -234,6 +225,8 @@ export function useSettings() {
       toggleBgMusic: () => {},
       bgMusicVolume: 0.2,
       setBgMusicVolume: () => {},
+      customCursorEnabled: true,
+      setCustomCursorEnabled: () => {},
       t: (key: string) => translations.es[key] || key,
     };
   }

@@ -1,14 +1,13 @@
 import { useEffect } from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings, ThemeColor, BackgroundMusicType, Language } from '@/contexts/SettingsContext';
-import { X, Settings, Palette, Globe, Music, Volume2, VolumeX, AlertCircle } from 'lucide-react';
+import { X, Settings, Palette, Globe, Music, Volume2, VolumeX, AlertCircle, MousePointer2 } from 'lucide-react';
 
 interface SettingsMenuProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Solo una declaración de themes
 const themes: { id: ThemeColor; name: string; nameEn: string; colors: string }[] = [
   { id: 'default', name: 'Neón Oscuro', nameEn: 'Dark Neon', colors: 'from-neon-pink via-neon-cyan to-neon-purple' },
   { id: 'ocean', name: 'Océano Profundo', nameEn: 'Deep Ocean', colors: 'from-blue-500 via-cyan-500 to-teal-500' },
@@ -17,7 +16,6 @@ const themes: { id: ThemeColor; name: string; nameEn: string; colors: string }[]
   { id: 'galaxy', name: 'Galaxia', nameEn: 'Galaxy', colors: 'from-purple-500 via-indigo-500 to-blue-500' },
 ];
 
-// Solo una declaración de bgMusicOptions
 const bgMusicOptions: { id: BackgroundMusicType; nameEs: string; nameEn: string; icon: string }[] = [
   { id: 'none', nameEs: 'Sin música', nameEn: 'No music', icon: '🔇' },
   { id: 'lofi', nameEs: 'Lo-Fi Relajante', nameEn: 'Lo-Fi Relaxing', icon: '🎧' },
@@ -33,6 +31,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
     language, setLanguage,
     isBgMusicPlaying, toggleBgMusic,
     bgMusicVolume, setBgMusicVolume,
+    customCursorEnabled, setCustomCursorEnabled,
     t 
   } = useSettings();
 
@@ -90,7 +89,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
           boxShadow: '0 0 30px hsl(var(--neon-cyan) / 0.3), inset 0 0 60px hsl(var(--neon-purple) / 0.1)'
         }}
       >
-        {/* Cabecera del menú */}
+        {/* RPG Menu Header */}
         <div className="relative -m-4 mb-4 p-4 bg-gradient-to-r from-neon-pink/30 via-neon-cyan/30 to-neon-purple/30 border-b-4 border-neon-cyan">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -109,7 +108,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             </button>
           </div>
           
-          {/* Esquinas decorativas */}
+          {/* Decorative corners */}
           <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-star-gold" />
           <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-star-gold" />
           <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-star-gold" />
@@ -117,7 +116,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
         </div>
 
         <div className="space-y-6">
-          {/* Sección de idioma */}
+          {/* Language Section */}
           <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-neon-cyan transition-colors">
             <div className="flex items-center gap-2 mb-3">
               <Globe size={18} className="text-neon-cyan" />
@@ -142,7 +141,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             </div>
           </div>
 
-          {/* Sección de tema */}
+          {/* Theme Section */}
           <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-neon-pink transition-colors">
             <div className="flex items-center gap-2 mb-3">
               <Palette size={18} className="text-neon-pink" />
@@ -170,7 +169,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             </div>
           </div>
 
-          {/* Sección de música de fondo */}
+          {/* Background Music Section */}
           <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-star-gold transition-colors">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -195,7 +194,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
               )}
             </div>
 
-            {/* Info de música apagada por defecto */}
+            {/* Info about music being off by default */}
             <div className="flex items-center gap-2 mb-3 p-2 bg-night-deep/50 rounded border border-star-gold/30">
               <AlertCircle size={14} className="text-star-gold flex-shrink-0" />
               <span className="font-retro text-xs text-muted-foreground">
@@ -203,7 +202,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
               </span>
             </div>
 
-            {/* Opciones de música */}
             <div className="grid grid-cols-2 gap-2 mb-4">
               {bgMusicOptions.map((musicOption) => (
                 <button
@@ -223,7 +221,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
               ))}
             </div>
 
-            {/* Slider de volumen */}
+            {/* Volume Slider */}
             {backgroundMusic !== 'none' && (
               <div className="pt-3 border-t border-border">
                 <div className="flex items-center justify-between mb-2">
@@ -254,7 +252,37 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             )}
           </div>
 
-          {/* Pie de página */}
+          {/* Custom Cursor Section */}
+          <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-neon-purple transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MousePointer2 size={18} className="text-neon-purple" />
+                <h3 className="font-pixel text-[10px] text-accent">
+                  {isSpanish ? 'CURSOR PERSONALIZADO' : 'CUSTOM CURSOR'}
+                </h3>
+              </div>
+              <button
+                onClick={() => { playClick(); setCustomCursorEnabled(!customCursorEnabled); }}
+                onMouseEnter={playHover}
+                className={`w-14 h-7 rounded-full transition-all relative ${
+                  customCursorEnabled 
+                    ? 'bg-neon-purple shadow-[0_0_10px_rgba(168,85,247,0.5)]' 
+                    : 'bg-muted border border-border'
+                }`}
+              >
+                <span className={`absolute top-1 w-5 h-5 rounded-full bg-foreground transition-all ${
+                  customCursorEnabled ? 'left-8' : 'left-1'
+                }`} />
+              </button>
+            </div>
+            <p className="font-retro text-xs text-muted-foreground mt-2">
+              {isSpanish 
+                ? 'Desactiva para usar el cursor normal del sistema' 
+                : 'Disable to use the normal system cursor'}
+            </p>
+          </div>
+
+          {/* Footer */}
           <div className="flex items-center justify-center gap-4 pt-4 border-t-2 border-dashed border-border">
             <div className="font-retro text-sm text-muted-foreground flex items-center gap-1">
               <span className="text-neon-cyan">♦</span>
@@ -264,7 +292,6 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
           </div>
         </div>
 
-        {/* Pie de página inferior */}
         <div className="absolute bottom-2 left-2 text-muted-foreground/30 font-pixel text-[8px]">
           {t('settings.exit')}
         </div>

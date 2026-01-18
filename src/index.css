@@ -106,7 +106,6 @@
 @layer base {
   * {
     @apply border-border;
-    cursor: none !important;
   }
 
   body {
@@ -114,10 +113,15 @@
     font-family: var(--font-cartoon);
     background: var(--gradient-galaxy);
     background-attachment: fixed;
+  }
+
+  /* Custom cursor styles - applied via JS class */
+  body.custom-cursor-enabled,
+  body.custom-cursor-enabled * {
     cursor: none !important;
   }
 
-  /* Custom animated cursor (GIF cursors via CSS often fail due to browser size/support limits) */
+  /* Custom animated cursor */
   .custom-cursor {
     position: fixed;
     top: 0;
@@ -145,11 +149,8 @@
   }
 
   @media (pointer: coarse) {
-    * {
-      cursor: auto !important;
-    }
-
-    body {
+    body.custom-cursor-enabled,
+    body.custom-cursor-enabled * {
       cursor: auto !important;
     }
 
@@ -302,15 +303,54 @@
     background: var(--gradient-card);
     border: 3px solid hsl(var(--pixel-border));
     box-shadow: var(--shadow-pixel);
-    transition: all 0.2s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .game-card:hover {
-    transform: translateY(-3px) translateX(-3px);
-    box-shadow: 7px 7px 0px hsl(252 40% 5%);
+    transform: translateY(-4px) translateX(-4px) scale(1.01);
+    box-shadow: 8px 8px 0px hsl(252 40% 5%), 0 0 20px hsl(var(--neon-cyan) / 0.2);
+    border-color: hsl(var(--neon-cyan));
   }
 
-  /* Pixel font classes */
+  /* Advanced hover effects */
+  .hover-glow {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsl(var(--neon-cyan) / 0.4), 0 0 40px hsl(var(--neon-pink) / 0.2);
+    transform: translateY(-2px);
+  }
+
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .hover-shine {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hover-shine::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsl(var(--neon-cyan) / 0.2), transparent);
+    transition: left 0.5s ease;
+    pointer-events: none;
+  }
+
+  .hover-shine:hover::before {
+    left: 100%;
+  }
   .font-pixel {
     font-family: var(--font-pixel);
   }

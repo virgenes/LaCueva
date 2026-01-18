@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-// IMPORTACIÓN DE IMÁGENES
-// Esto asegura que Vite encuentre la ruta real, sin importar configuraciones del servidor
+// MANTENEMOS TUS IMPORTS ORIGINALES
 import pointerImg from "@/assets/cursors/pointer.gif";
 import linkImg from "@/assets/cursors/link.gif";
-// Si alguna de estas no existe en tu carpeta, comenta la línea y usa pointerImg abajo
 import textImg from "@/assets/cursors/text.gif";
 import helpImg from "@/assets/cursors/help.gif";
 import workingImg from "@/assets/cursors/working.gif";
@@ -50,6 +48,7 @@ function getCursorKindFromTarget(target: EventTarget | null): CursorKind {
   if (el.closest(".like-button, .heart-button, .favorite-button")) return "like";
   if (el.closest("[draggable='true'], .cursor-grab")) return "alternate";
   
+  // AQUÍ ESTABA EL ERROR: La cadena de texto se cerró correctamente ahora
   if (el.closest("a[href], button, [role='button'], .cursor-pointer, input[type='submit'], input[type='button'], label[for], select, .retro-btn, .retro-btn-pink")) {
     return "link";
   }
@@ -62,8 +61,6 @@ export function CustomCursor() {
   const [visible, setVisible] = useState(false);
   const elRef = useRef<HTMLDivElement | null>(null);
 
-  // Mapeo directo de los imports. 
-  // Si alguna imagen falla al importar, Vite te avisará ANTES de abrir la página.
   const cursorSrc = useMemo(() => {
     const map: Record<CursorKind, string> = {
       pointer: pointerImg,
@@ -78,6 +75,13 @@ export function CustomCursor() {
     };
     return map[kind];
   }, [kind]);
+
+  useEffect(() => {
+    document.body.classList.add('custom-cursor-enabled');
+    return () => {
+      document.body.classList.remove('custom-cursor-enabled');
+    };
+  }, []);
 
   useEffect(() => {
     const el = elRef.current;
@@ -131,7 +135,6 @@ export function CustomCursor() {
         alt="" 
         aria-hidden="true" 
         draggable={false}
-        // Fallback de seguridad definitivo
         onError={(e) => {
           const img = e.currentTarget;
           if (img.src !== pointerImg) {
