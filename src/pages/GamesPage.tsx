@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GameCard } from '@/components/GameCard';
 import { RetroButton } from '@/components/RetroButton';
@@ -65,7 +65,7 @@ const GamesPage = () => {
       
       {/* Mobile Layout */}
       <MobileLayout>
-        <div className="px-4 py-4">
+        <div className="px-4 py-4 pb-24">
           <GameCard hoverable={false}>
             <h1 className="font-pixel text-base text-primary mb-4 text-center neon-text">
               🎮 {t('section.games')} 🎮
@@ -75,27 +75,74 @@ const GamesPage = () => {
               placeholder="🔍 Buscar juegos..."
               value={searchQuery}
               onChange={(value) => { setSearchQuery(value); setCurrentPage(1); }}
-              className="mb-4"
+              className="mb-3"
             />
 
+            {/* Mobile Filters */}
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+              <select 
+                value={selectedGenre}
+                onChange={(e) => { playClick(); setSelectedGenre(e.target.value); setCurrentPage(1); }}
+                className="flex-1 bg-night-deep text-foreground font-retro text-sm px-3 py-2 rounded-sm border-2 border-neon-cyan focus:outline-none"
+              >
+                <option value="all">{t('games.genre')}: {t('games.all')}</option>
+                {AVAILABLE_GENRES.map(genre => <option key={genre} value={genre}>{genre}</option>)}
+              </select>
+              
+              <select 
+                value={selectedPlatform}
+                onChange={(e) => { playClick(); setSelectedPlatform(e.target.value); setCurrentPage(1); }}
+                className="flex-1 bg-night-deep text-foreground font-retro text-sm px-3 py-2 rounded-sm border-2 border-neon-pink focus:outline-none"
+              >
+                <option value="all">{t('games.platform')}: {t('games.all')}</option>
+                {AVAILABLE_PLATFORMS.map(platform => <option key={platform} value={platform}>{platform}</option>)}
+              </select>
+            </div>
+
+            {/* Results count */}
+            <div className="text-center mb-3">
+              <span className="font-retro text-sm text-star-gold">
+                ⭐ {filteredGames.length} {t('games.found')}
+              </span>
+            </div>
+
+            {/* Games Grid */}
             <div className="grid grid-cols-2 gap-3">
               {paginatedGames.map((game) => (
                 <div
                   key={game.id}
                   onClick={() => openGameModal(game)}
-                  className="cursor-pointer bg-muted/30 rounded-sm border-2 border-border hover:border-neon-cyan transition-all"
+                  className="group cursor-pointer bg-muted/30 rounded-sm border-2 border-border 
+                    hover:border-neon-cyan active:scale-95 transition-all duration-200
+                    hover:shadow-[0_0_15px_rgba(0,255,255,0.3)]"
                 >
                   <div className="relative h-24 bg-night-deep/50 overflow-hidden rounded-t-sm">
                     {game.cover && !game.cover.includes('placeholder') ? (
-                      <img src={game.cover} alt={game.title} className="w-full h-full object-cover" />
+                      <img 
+                        src={game.cover} 
+                        alt={game.title} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                      />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neon-cyan/20 to-neon-pink/20">
                         <span className="text-3xl">🎮</span>
                       </div>
                     )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-night-deep via-transparent to-transparent" />
+                    
+                    {/* Platform badges */}
+                    <div className="absolute top-1 right-1 flex gap-0.5">
+                      {game.platforms.slice(0, 2).map((platform, i) => (
+                        <span key={i} className="bg-night-deep/90 p-0.5 rounded-sm text-neon-cyan border border-neon-cyan/30 text-[10px]">
+                          {getPlatformIcon(platform)}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                   <div className="p-2">
-                    <h3 className="font-pixel text-[7px] text-accent line-clamp-2">{game.title}</h3>
+                    <h3 className="font-pixel text-[7px] text-accent line-clamp-2 group-hover:text-primary transition-colors">
+                      {game.title}
+                    </h3>
                     <span className="font-retro text-[10px] text-neon-cyan">{game.genres[0]}</span>
                   </div>
                 </div>
@@ -107,6 +154,63 @@ const GamesPage = () => {
                 <span className="text-5xl block animate-bounce">🎮</span>
                 <p className="font-pixel text-xs text-muted-foreground mt-2">No hay juegos</p>
               </div>
+            )}
+
+            {/* Mobile Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t border-border">
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded-sm border-2 transition-all ${
+                    currentPage === 1 
+                      ? 'border-border text-muted-foreground opacity-50' 
+                      : 'border-neon-cyan text-neon-cyan active:bg-neon-cyan active:text-night-deep'
+                  }`}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+
+                <div className="flex gap-1 overflow-x-auto max-w-[200px] px-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                    .map((page, idx, arr) => (
+                      <React.Fragment key={page}>
+                        {idx > 0 && arr[idx - 1] !== page - 1 && (
+                          <span className="text-muted-foreground px-1">...</span>
+                        )}
+                        <button
+                          onClick={() => goToPage(page)}
+                          className={`w-8 h-8 rounded-sm border-2 font-pixel text-[10px] transition-all ${
+                            page === currentPage
+                              ? 'bg-neon-pink text-night-deep border-neon-pink shadow-neon-pink'
+                              : 'border-border text-foreground'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                </div>
+
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`p-2 rounded-sm border-2 transition-all ${
+                    currentPage === totalPages 
+                      ? 'border-border text-muted-foreground opacity-50' 
+                      : 'border-neon-cyan text-neon-cyan active:bg-neon-cyan active:text-night-deep'
+                  }`}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <p className="text-center font-retro text-sm text-muted-foreground mt-2">
+                {t('games.page')} {currentPage} {t('games.of')} {totalPages}
+              </p>
             )}
           </GameCard>
         </div>

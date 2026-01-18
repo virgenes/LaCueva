@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
+// ============================================================
+// IMPORTACIÓN DE MÚSICA (Desde src/assets/music)
+// ============================================================
+import zeldaTheme from '@/assets/music/zelda-theme.opus';
+import lofiTrack from '@/assets/music/lofi-relaxing.opus';
+import vibRibbon from '@/assets/music/vib-ribbon.opus';
+
 export type ThemeColor = 'default' | 'ocean' | 'forest' | 'sunset' | 'galaxy';
 export type BackgroundMusicType = 'none' | 'lofi' | 'vib-ribbon' | 'zelda';
 export type Language = 'es' | 'en';
@@ -16,8 +23,10 @@ interface SettingsContextType {
   bgMusicVolume: number;
   setBgMusicVolume: (volume: number) => void;
   toggleBgMusic: () => void;
+  // --- Agregación: Cursor Personalizado ---
   customCursorEnabled: boolean;
   setCustomCursorEnabled: (enabled: boolean) => void;
+  // ----------------------------------------
   t: (key: string) => string;
 }
 
@@ -78,11 +87,14 @@ const THEME_VARIABLES: Record<ThemeColor, Record<string, string>> = {
   galaxy: { '--neon-cyan': '270 100% 60%', '--neon-pink': '300 100% 60%', '--neon-purple': '260 80% 55%', '--star-gold': '280 100% 70%', '--primary': '270 100% 60%', '--secondary': '300 100% 60%', '--accent': '290 100% 65%' },
 };
 
+// ============================================================
+// MAPA DE MÚSICA CON RUTAS CORREGIDAS (Usando imports de Vite)
+// ============================================================
 const MUSIC_FILES: Record<BackgroundMusicType, string> = {
   none: '',
-  lofi: '/music/lofi-relaxing.opus',
-  'vib-ribbon': '/music/vib-ribbon.opus',
-  zelda: '/music/zelda-theme.opus',
+  lofi: lofiTrack,
+  'vib-ribbon': vibRibbon,
+  zelda: zeldaTheme,
 };
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -91,7 +103,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('es');
   const [isBgMusicPlaying, setIsBgMusicPlaying] = useState(false);
   const [bgMusicVolume, setBgMusicVolumeState] = useState(0.2); // 20% max
+  // --- Agregación: Cursor ---
   const [customCursorEnabled, setCustomCursorEnabledState] = useState(true);
+  
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load saved settings
@@ -101,9 +115,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const savedLanguage = localStorage.getItem('cave-language') as Language;
       const savedVolume = localStorage.getItem('cave-bg-volume');
       const savedCursor = localStorage.getItem('cave-custom-cursor');
+      
       if (savedTheme && THEME_VARIABLES[savedTheme]) setThemeState(savedTheme);
       if (savedLanguage && translations[savedLanguage]) setLanguageState(savedLanguage);
       if (savedVolume) setBgMusicVolumeState(Math.min(parseFloat(savedVolume), 0.2));
+      // Cargar estado del cursor
       if (savedCursor !== null) setCustomCursorEnabledState(savedCursor === 'true');
     } catch {}
   }, []);
@@ -137,6 +153,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       audioRef.current.volume = bgMusicVolume;
     } else {
       audioRef.current.src = musicFile;
+      // Mantener reproducción si ya estaba activo
+      if (isBgMusicPlaying) {
+        audioRef.current.play().catch(() => setIsBgMusicPlaying(false));
+      }
     }
   }, [backgroundMusic]);
 
@@ -155,7 +175,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setBackgroundMusic = useCallback((newMusic: BackgroundMusicType) => {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current = null;
     }
     setBackgroundMusicState(newMusic);
     setIsBgMusicPlaying(false);
@@ -173,13 +192,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         audioRef.current.loop = true;
         audioRef.current.volume = bgMusicVolume;
       }
-      audioRef.current.play().catch(() => {});
-      setIsBgMusicPlaying(true);
+      audioRef.current.play()
+        .then(() => setIsBgMusicPlaying(true))
+        .catch(() => setIsBgMusicPlaying(false));
     }
   }, [backgroundMusic, isBgMusicPlaying, bgMusicVolume]);
 
   const setBgMusicVolume = useCallback((volume: number) => {
-    const clampedVolume = Math.min(Math.max(volume, 0), 0.2); // Max 20%
+    const clampedVolume = Math.min(Math.max(volume, 0), 0.2);
     setBgMusicVolumeState(clampedVolume);
     try { localStorage.setItem('cave-bg-volume', clampedVolume.toString()); } catch {}
   }, []);
@@ -189,6 +209,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem('cave-language', newLanguage); } catch {}
   }, []);
 
+  // --- Agregación: Guardar estado del cursor ---
   const setCustomCursorEnabled = useCallback((enabled: boolean) => {
     setCustomCursorEnabledState(enabled);
     try { localStorage.setItem('cave-custom-cursor', enabled.toString()); } catch {}
