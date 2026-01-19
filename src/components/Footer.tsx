@@ -1,10 +1,12 @@
 import React from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useSettings } from '@/contexts/SettingsContext';
 import { VisitorCounter } from './VisitorCounter';
 import logoFurros from '@/assets/logo-furros.jpg';
 
 export const Footer: React.FC = () => {
   const { playClick, playHover } = useSoundEffects();
+  const { t } = useSettings();
   const currentYear = new Date().getFullYear();
 
   const socialLinks = [
@@ -24,7 +26,7 @@ export const Footer: React.FC = () => {
       <div className="game-card p-4 text-center mb-4">
         <div className="flex items-center justify-center gap-2 mb-3">
           <span className="text-xl">🌐</span>
-          <h3 className="font-pixel text-xs text-primary">SÍGUENOS EN REDES</h3>
+          <h3 className="font-pixel text-xs text-primary">{t('footer.followUs')}</h3>
           <span className="text-xl">🌐</span>
         </div>
         
@@ -55,7 +57,7 @@ export const Footer: React.FC = () => {
           onClick={playClick}
           onMouseEnter={playHover}
         >
-          <span className="font-pixel text-[8px] text-neon-cyan">¿TU PROPIA WEB?</span>
+          <span className="font-pixel text-[8px] text-neon-cyan">{t('footer.yourWeb')}</span>
           <div className="font-retro text-sm text-secondary">neocities | cohost</div>
         </div>
         
@@ -64,8 +66,8 @@ export const Footer: React.FC = () => {
           onClick={playClick}
           onMouseEnter={playHover}
         >
-          <span className="font-pixel text-[8px] text-star-gold">COLECCIÓN ÉPICA</span>
-          <div className="font-retro text-sm text-muted-foreground">insignias afiliadas</div>
+          <span className="font-pixel text-[8px] text-star-gold">{t('footer.epicCollection')}</span>
+          <div className="font-retro text-sm text-muted-foreground">{t('footer.affiliatedBadges')}</div>
         </div>
       </div>
 
@@ -80,10 +82,10 @@ export const Footer: React.FC = () => {
           <span className="font-pixel text-[10px] text-primary">LA CUEVA DE LOS VÍRGENES</span>
         </div>
         <p className="font-retro text-lg text-muted-foreground">
-          © {currentYear} Todos los derechos reservados
+          © {currentYear} {t('footer.rights')}
         </p>
         <p className="font-retro text-sm text-muted-foreground/60 mt-1">
-          Hecho con 💜 y mucho café ☕
+          {t('footer.madeWithLove')}
         </p>
         
         {/* Retro web badges */}

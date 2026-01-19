@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback } f
 import type { ReactNode } from 'react';
 
 // ============================================================
-// IMPORTACIÓN DE MÚSICA (Desde src/assets/music)
+// IMPORTACIÓN DE MÚSICA
 // ============================================================
 import zeldaTheme from '@/assets/music/zelda-theme.opus';
 import lofiTrack from '@/assets/music/lofi-relaxing.opus';
@@ -23,59 +23,134 @@ interface SettingsContextType {
   bgMusicVolume: number;
   setBgMusicVolume: (volume: number) => void;
   toggleBgMusic: () => void;
-  // --- Agregación: Cursor Personalizado ---
   customCursorEnabled: boolean;
   setCustomCursorEnabled: (enabled: boolean) => void;
-  // ----------------------------------------
   t: (key: string) => string;
 }
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
+// ============================================================
+// TRADUCCIONES ACTUALIZADAS
+// ============================================================
 const translations: Record<Language, Record<string, string>> = {
   es: {
-    'nav.home': 'Inicio', 'nav.games': 'Juegos', 'nav.music': 'Música', 'nav.art': 'Arte',
-    'nav.explore': 'Explorar', 'nav.settings': 'Config', 'nav.back': 'Volver al Inicio',
+    // Navegación
+    'nav.home': 'Inicio', 
+    'nav.games': 'Juegos', 
+    'nav.music': 'Música', 
+    'nav.art': 'Arte',
+    'nav.explore': 'Explorar', 
+    'nav.settings': 'CONFIGURACIÓN', // Actualizado de 'Config' a 'CONFIGURACIÓN'
+    'nav.minigames': 'MINI-JUEGOS',   // Nueva clave agregada
+    'nav.back': 'Volver al Inicio',
+
+    // Secciones
     'section.forYou': 'PARA TI', 'section.faq': '¡Pregúntanos!', 'section.gallery': 'Galería',
     'section.guestbook': 'Libro de Visitas', 'section.updates': 'ACTUALIZACIONES DEL SITIO',
     'section.newsfeed': 'NOTICIAS', 'section.about': 'Si eres nuevo aquí...',
     'section.announcement': 'ANUNCIO', 'section.games': 'VIDEOJUEGOS',
     'section.music': 'MÚSICA', 'section.art': 'GALERÍA DE ARTE',
+
+    // Ajustes
     'settings.title': '⚔️ CONFIGURACIÓN ⚔️', 'settings.language': 'IDIOMA',
     'settings.theme': 'TEMA DE COLORES', 'settings.bgMusic': 'MÚSICA DE FONDO',
     'settings.volume': 'Volumen', 'settings.musicOff': 'Música desactivada por defecto',
     'settings.level': 'Nivel de personalización: MAX', 'settings.exit': '◄ ESC para salir',
+    'settings.cursor': 'CURSOR PERSONALIZADO', 'settings.cursorHint': 'Desactiva para usar el cursor normal del sistema',
+    
+    // Juegos
     'games.genre': 'Género', 'games.platform': 'Plataforma', 'games.all': 'Todos',
     'games.download': 'Descargar', 'games.play': 'Jugar Ahora',
     'games.description': 'DESCRIPCIÓN', 'games.downloads': 'DESCARGAS',
     'games.page': 'Página', 'games.of': 'de', 'games.found': 'juegos encontrados',
     'exit.title': '¿Seguro que quieres irte?', 'exit.subtitle': '¡Te extrañaremos!',
     'exit.yes': 'Sí, ¡adiós!', 'exit.no': '¡NO, me quedo!',
-    'footer.visitors': 'Visitantes Únicos', 'footer.madeWith': 'Hecho con', 'footer.by': 'por',
+    
+    // Footer y Header
+    'footer.visitors': 'visitantes únicos', 'footer.madeWith': 'Hecho con', 'footer.by': 'por',
+    'footer.followUs': 'SÍGUENOS EN REDES', 'footer.yourWeb': '¿TU PROPIA WEB?',
+    'footer.epicCollection': 'COLECCIÓN ÉPICA', 'footer.affiliatedBadges': 'insignias afiliadas',
+    'footer.rights': 'Todos los derechos reservados', 'footer.madeWithLove': 'Hecho con 💜 y mucho café ☕',
+    
+    // Música
     'music.title': 'REPRODUCTOR DE MÚSICA', 'music.nowPlaying': 'Reproduciendo ahora',
     'music.playlist': 'Lista de reproducción', 'music.volume': 'Volumen',
+    
+    // Header & Sidebar
+    'header.welcome': '¡BIENVENIDOS A LA CUEVA DE LOS VÍRGENES!',
+    'header.epic': 'El lugar más épico del internet',
+    'header.updates': '¡Nuevas actualizaciones cada semana!',
+    'header.join': '¡Únete a nuestra comunidad gamer!',
+    'header.subtitle': 'La Comunidad Más Friki',
+    'header.achievement': 'Logro Desbloqueado', 'header.stalker': 'Stalker Profesional',
+    'sidebar.online': 'En línea', 'sidebar.theCave': 'LA CUEVA', 'sidebar.ofVirgins': '¡De los Vírgenes!',
+    
+    // About
+    'about.hello': '¡Hola!', 'about.virgin': 'Virgen', 'about.potential': 'en potencia',
+    'about.description': 'estás en la guarida de estos niños olor a pescado. Revisa nuestra página para ver proyectos sumamente asquerosos jijiji! Actualmente el sitio se está trabajando, todo gracias a',
+    'about.labyrinth': ', se ha vuelto un laberinto y hay muchas páginas que actualizar.',
+    'about.explore1': 'Si quieres entrar a ver qué contenido podemos traerles les recomiendo explorar la zona de',
+    'about.explore2': ', hice una guía que te puede ayudar. ¡Explica las conexiones entre todo! Y si deseas un acceso más directo, puedes darle clicks a los iconitos que están abajo para revisar rápidamente.',
   },
   en: {
-    'nav.home': 'Home', 'nav.games': 'Games', 'nav.music': 'Music', 'nav.art': 'Art',
-    'nav.explore': 'Explore', 'nav.settings': 'Settings', 'nav.back': 'Back to Home',
+    // Navigation
+    'nav.home': 'Home', 
+    'nav.games': 'Games', 
+    'nav.music': 'Music', 
+    'nav.art': 'Art',
+    'nav.explore': 'Explore', 
+    'nav.settings': 'SETTINGS',    // Update
+    'nav.minigames': 'MINI-GAMES', // New
+    'nav.back': 'Back to Home',
+
+    // Sections
     'section.forYou': 'FOR YOU', 'section.faq': 'Ask Us!', 'section.gallery': 'Gallery',
     'section.guestbook': 'Guest Book', 'section.updates': 'SITE UPDATES',
     'section.newsfeed': 'NEWS', 'section.about': 'If you are new here...',
     'section.announcement': 'ANNOUNCEMENT', 'section.games': 'VIDEO GAMES',
     'section.music': 'MUSIC', 'section.art': 'ART GALLERY',
+
+    // Settings
     'settings.title': '⚔️ SETTINGS ⚔️', 'settings.language': 'LANGUAGE',
     'settings.theme': 'COLOR THEME', 'settings.bgMusic': 'BACKGROUND MUSIC',
     'settings.volume': 'Volume', 'settings.musicOff': 'Music disabled by default',
     'settings.level': 'Customization level: MAX', 'settings.exit': '◄ ESC to exit',
+    'settings.cursor': 'CUSTOM CURSOR', 'settings.cursorHint': 'Disable to use the normal system cursor',
+    
+    // Games
     'games.genre': 'Genre', 'games.platform': 'Platform', 'games.all': 'All',
     'games.download': 'Download', 'games.play': 'Play Now',
     'games.description': 'DESCRIPTION', 'games.downloads': 'DOWNLOADS',
     'games.page': 'Page', 'games.of': 'of', 'games.found': 'games found',
     'exit.title': 'Are you sure you want to leave?', 'exit.subtitle': "We'll miss you!",
     'exit.yes': 'Yes, goodbye!', 'exit.no': 'NO, I stay!',
-    'footer.visitors': 'Unique Visitors', 'footer.madeWith': 'Made with', 'footer.by': 'by',
+    
+    // Footer & Header
+    'footer.visitors': 'unique visitors', 'footer.madeWith': 'Made with', 'footer.by': 'by',
+    'footer.followUs': 'FOLLOW US', 'footer.yourWeb': 'YOUR OWN WEBSITE?',
+    'footer.epicCollection': 'EPIC COLLECTION', 'footer.affiliatedBadges': 'affiliated badges',
+    'footer.rights': 'All rights reserved', 'footer.madeWithLove': 'Made with 💜 and lots of coffee ☕',
+    
+    // Music
     'music.title': 'MUSIC PLAYER', 'music.nowPlaying': 'Now Playing',
     'music.playlist': 'Playlist', 'music.volume': 'Volume',
+    
+    // Header & Sidebar
+    'header.welcome': 'WELCOME TO LA CUEVA DE LOS VÍRGENES!',
+    'header.epic': 'The most epic place on the internet',
+    'header.updates': 'New updates every week!',
+    'header.join': 'Join our gamer community!',
+    'header.subtitle': 'The Geekiest Community',
+    'header.achievement': 'Achievement Unlocked', 'header.stalker': 'Professional Stalker',
+    'sidebar.online': 'Online', 'sidebar.theCave': 'THE CAVE', 'sidebar.ofVirgins': 'Of the Virgins!',
+    
+    // About
+    'about.hello': 'Hello!', 'about.virgin': 'Virgin', 'about.potential': 'in potential',
+    'about.description': "you're in the lair of these fishy-smelling kids. Check out our page to see super disgusting projects hehe! The site is currently being worked on, all thanks to",
+    'about.labyrinth': ", it has become a labyrinth and there are many pages to update.",
+    'about.explore1': 'If you want to see what content we can bring you, I recommend exploring the',
+    'about.explore2': ' area, I made a guide that can help you. It explains the connections between everything! And if you want more direct access, you can click on the icons below to quickly check.',
   },
 };
 
@@ -87,9 +162,6 @@ const THEME_VARIABLES: Record<ThemeColor, Record<string, string>> = {
   galaxy: { '--neon-cyan': '270 100% 60%', '--neon-pink': '300 100% 60%', '--neon-purple': '260 80% 55%', '--star-gold': '280 100% 70%', '--primary': '270 100% 60%', '--secondary': '300 100% 60%', '--accent': '290 100% 65%' },
 };
 
-// ============================================================
-// MAPA DE MÚSICA CON RUTAS CORREGIDAS (Usando imports de Vite)
-// ============================================================
 const MUSIC_FILES: Record<BackgroundMusicType, string> = {
   none: '',
   lofi: lofiTrack,
@@ -102,13 +174,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [backgroundMusic, setBackgroundMusicState] = useState<BackgroundMusicType>('none');
   const [language, setLanguageState] = useState<Language>('es');
   const [isBgMusicPlaying, setIsBgMusicPlaying] = useState(false);
-  const [bgMusicVolume, setBgMusicVolumeState] = useState(0.2); // 20% max
-  // --- Agregación: Cursor ---
+  const [bgMusicVolume, setBgMusicVolumeState] = useState(0.2); 
   const [customCursorEnabled, setCustomCursorEnabledState] = useState(true);
-  
+   
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Load saved settings
   useEffect(() => {
     try {
       const savedTheme = localStorage.getItem('cave-theme') as ThemeColor;
@@ -119,12 +189,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (savedTheme && THEME_VARIABLES[savedTheme]) setThemeState(savedTheme);
       if (savedLanguage && translations[savedLanguage]) setLanguageState(savedLanguage);
       if (savedVolume) setBgMusicVolumeState(Math.min(parseFloat(savedVolume), 0.2));
-      // Cargar estado del cursor
       if (savedCursor !== null) setCustomCursorEnabledState(savedCursor === 'true');
     } catch {}
   }, []);
 
-  // Apply theme
   useEffect(() => {
     const variables = THEME_VARIABLES[theme];
     const root = document.documentElement;
@@ -133,7 +201,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   }, [theme]);
 
-  // Handle background music
   useEffect(() => {
     if (backgroundMusic === 'none') {
       if (audioRef.current) {
@@ -153,14 +220,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       audioRef.current.volume = bgMusicVolume;
     } else {
       audioRef.current.src = musicFile;
-      // Mantener reproducción si ya estaba activo
       if (isBgMusicPlaying) {
         audioRef.current.play().catch(() => setIsBgMusicPlaying(false));
       }
     }
   }, [backgroundMusic]);
 
-  // Update volume
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = bgMusicVolume;
@@ -209,7 +274,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem('cave-language', newLanguage); } catch {}
   }, []);
 
-  // --- Agregación: Guardar estado del cursor ---
   const setCustomCursorEnabled = useCallback((enabled: boolean) => {
     setCustomCursorEnabledState(enabled);
     try { localStorage.setItem('cave-custom-cursor', enabled.toString()); } catch {}

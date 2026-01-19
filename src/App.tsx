@@ -2,10 +2,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route, useLocation } from "react-router-dom"; // Mantenemos HashRouter
-import { SettingsProvider, useSettings } from "@/contexts/SettingsContext"; // Añadido useSettings
+import { HashRouter, Routes, Route, useLocation } from "react-router-dom"; // Mantenemos HashRouter estrictamente
+import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { YouTubeMusicProvider } from "@/contexts/YouTubeMusicContext";
-import { DraggablePlayer } from "@/components/DraggablePlayer"; // Cambiado a DraggablePlayer
+import { FavoritesProvider } from "@/contexts/FavoritesContext"; // NUEVO: Importación de favoritos
+import { DraggablePlayer } from "@/components/DraggablePlayer";
 import { CustomCursor } from "@/components/CustomCursor";
 import { AnimatePresence } from "framer-motion";
 
@@ -34,7 +35,7 @@ const AnimatedRoutes = () => {
   );
 };
 
-// Wrapper del cursor que respeta la configuración (Nueva funcionalidad)
+// Wrapper del cursor que respeta la configuración
 const CursorWrapper = () => {
   const { customCursorEnabled } = useSettings();
   if (!customCursorEnabled) return null;
@@ -44,23 +45,26 @@ const CursorWrapper = () => {
 const App = () => (
   <SettingsProvider>
     <YouTubeMusicProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          {/* Lógica condicional del cursor importada del nuevo código */}
-          <CursorWrapper />
-          
-          <Toaster />
-          <Sonner />
-          
-          {/* Mantenemos HashRouter estrictamente */}
-          <HashRouter>
-            <AnimatedRoutes />
-          </HashRouter>
-          
-          {/* Reemplazado por DraggablePlayer que persiste en todas las páginas */}
-          <DraggablePlayer />
-        </TooltipProvider>
-      </QueryClientProvider>
+      {/* NUEVO: FavoritesProvider agregado a la jerarquía */}
+      <FavoritesProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            {/* Lógica condicional del cursor */}
+            <CursorWrapper />
+            
+            <Toaster />
+            <Sonner />
+            
+            {/* Mantenemos HashRouter estrictamente */}
+            <HashRouter>
+              <AnimatedRoutes />
+            </HashRouter>
+            
+            {/* Reproductor persistente */}
+            <DraggablePlayer />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </FavoritesProvider>
     </YouTubeMusicProvider>
   </SettingsProvider>
 );

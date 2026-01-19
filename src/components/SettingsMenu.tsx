@@ -258,7 +258,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
               <div className="flex items-center gap-2">
                 <MousePointer2 size={18} className="text-neon-purple" />
                 <h3 className="font-pixel text-[10px] text-accent">
-                  {isSpanish ? 'CURSOR PERSONALIZADO' : 'CUSTOM CURSOR'}
+                  {t('settings.cursor')}
                 </h3>
               </div>
               <button
@@ -276,9 +276,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
               </button>
             </div>
             <p className="font-retro text-xs text-muted-foreground mt-2">
-              {isSpanish 
-                ? 'Desactiva para usar el cursor normal del sistema' 
-                : 'Disable to use the normal system cursor'}
+              {t('settings.cursorHint')}
             </p>
           </div>
 

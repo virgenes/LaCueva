@@ -1,20 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useSettings } from '@/contexts/SettingsContext';
 import { GameCard } from './GameCard';
 import { PixelIcon } from './PixelIcon';
 import { PixelEmoji } from './PixelEmoji';
 import { SettingsMenu } from './SettingsMenu';
 import { ExternalLinkDialog } from './ExternalLinkDialog';
+import { MiniGamesHub } from './minigames/MiniGamesHub';
 import { cn } from '@/lib/utils';
 import logoFurros from '@/assets/logo-furros.jpg';
-import { Settings } from 'lucide-react';
-
-const menuItems = [
-  { icon: 'games' as const, label: 'Juegos', path: '/juegos' },
-  { icon: 'music' as const, label: 'Música', path: '/musica' },
-  { icon: 'art' as const, label: 'Arte', path: '/arte' },
-];
+import { Settings, Gamepad2 } from 'lucide-react';
 
 interface SidebarProps {
   className?: string;
@@ -23,8 +19,16 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const navigate = useNavigate();
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
+  const { t } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [miniGamesOpen, setMiniGamesOpen] = useState(false);
   const [externalLink, setExternalLink] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: '' });
+
+  const menuItems = [
+    { icon: 'games' as const, label: t('nav.games'), path: '/juegos' },
+    { icon: 'music' as const, label: t('nav.music'), path: '/musica' },
+    { icon: 'art' as const, label: t('nav.art'), path: '/arte' },
+  ];
 
   const handleNavigation = (path: string) => {
     playMenuOpen();
@@ -52,14 +56,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 <PixelEmoji type="star" size="sm" />
               </div>
             </div>
-            <h3 className="font-pixel text-[10px] text-primary mb-1">LA CUEVA</h3>
-            <p className="font-retro text-lg text-muted-foreground">¡De los Vírgenes!</p>
+            <h3 className="font-pixel text-[10px] text-primary mb-1">{t('sidebar.theCave')}</h3>
+            <p className="font-retro text-lg text-muted-foreground">{t('sidebar.ofVirgins')}</p>
           </div>
           
           <div className="mt-3 pt-3 border-t border-border">
             <div className="flex items-center justify-center gap-2">
               <span className="w-2 h-2 rounded-full bg-neon-cyan animate-sparkle" />
-              <span className="font-retro text-sm text-primary">En línea</span>
+              <span className="font-retro text-sm text-primary">{t('sidebar.online')}</span>
             </div>
           </div>
         </GameCard>
@@ -67,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
         {/* Navigation */}
         <GameCard hoverable={false} className="mb-4">
           <h4 className="font-pixel text-[10px] text-primary mb-3 text-center tracking-widest flex items-center justify-center gap-2">
-            <PixelEmoji type="star" size="sm" /> EXPLORAR <PixelEmoji type="star" size="sm" />
+            <PixelEmoji type="star" size="sm" /> {t('nav.explore').toUpperCase()} <PixelEmoji type="star" size="sm" />
           </h4>
           <nav className="space-y-2">
             {menuItems.map((item) => (
@@ -88,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
               </button>
             ))}
             
-            {/* Settings Button */}
+            {/* Settings Button - Ahora usa t() correctamente */}
             <button
               onClick={() => { playMenuOpen(); setSettingsOpen(true); }}
               onMouseEnter={playHover}
@@ -100,7 +104,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
                 <Settings size={14} className="text-night-deep" />
               </span>
               <span className="font-pixel text-[9px] text-foreground group-hover:text-primary transition-colors">
-                Config
+                {t('nav.settings')}
+              </span>
+            </button>
+
+            {/* Mini-Games Button - Adaptado para Inglés/Español */}
+            <button
+              onClick={() => { playMenuOpen(); setMiniGamesOpen(true); }}
+              onMouseEnter={playHover}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-sm
+                transition-all duration-150 group border-2 border-transparent
+                hover:bg-muted/50 hover:border-neon-pink hover:-translate-x-1"
+            >
+              <span className="w-8 h-8 rounded-sm flex items-center justify-center bg-neon-pink shadow-pixel group-hover:animate-wiggle">
+                <Gamepad2 size={14} className="text-night-deep" />
+              </span>
+              <span className="font-pixel text-[9px] text-foreground group-hover:text-primary transition-colors">
+                {t('nav.minigames')}
               </span>
             </button>
           </nav>
@@ -108,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
 
         {/* Social Links */}
         <GameCard className="text-center">
-          <p className="font-pixel text-[8px] text-muted-foreground mb-3">SÍGUENOS</p>
+          <p className="font-pixel text-[8px] text-muted-foreground mb-3">{t('footer.followUs')}</p>
           <div className="flex flex-col gap-2">
             <button 
               onClick={() => handleExternalLink('https://www.youtube.com/@CuevadelosVirgenes')}
@@ -145,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       </aside>
 
       <SettingsMenu isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      
+      <MiniGamesHub isOpen={miniGamesOpen} onClose={() => setMiniGamesOpen(false)} />
       <ExternalLinkDialog
         isOpen={externalLink.isOpen}
         url={externalLink.url}

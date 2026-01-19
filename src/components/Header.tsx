@@ -1,11 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useSettings } from '@/contexts/SettingsContext';
 import { AchievementNotification } from './AchievementNotification';
 import bannerHeader from '@/assets/banner-header.png';
 import logoFurros from '@/assets/logo-furros.jpg';
 
 export const Header: React.FC = () => {
   const { playClick, playHover, playSecretDiscovered } = useSoundEffects();
+  const { t } = useSettings();
   const [clickCount, setClickCount] = useState(0);
   const [showAchievement, setShowAchievement] = useState(false);
   const [achievementUnlocked, setAchievementUnlocked] = useState(false);
@@ -35,8 +37,8 @@ export const Header: React.FC = () => {
       <AchievementNotification 
         show={showAchievement}
         onComplete={handleAchievementComplete}
-        title="Logro Desbloqueado"
-        description="Stalker Profesional"
+        title={t('header.achievement')}
+        description={t('header.stalker')}
       />
 
       {/* Banner Container */}
@@ -85,7 +87,7 @@ export const Header: React.FC = () => {
                 LA CUEVA DE LOS VÍRGENES
               </h1>
               <p className="font-retro text-2xl text-neon-pink neon-text-pink">
-                ★ La Comunidad Más Friki ★
+                ★ {t('header.subtitle')} ★
               </p>
             </div>
           </div>
@@ -107,16 +109,16 @@ export const Header: React.FC = () => {
       <div className="mt-3 bg-muted border-2 border-border py-2 overflow-hidden relative">
         <div className="animate-marquee whitespace-nowrap">
           <span className="font-retro text-lg text-primary mx-8">
-            🎉 ¡BIENVENIDOS A LA CUEVA DE LOS VÍRGENES! 
+            🎉 {t('header.welcome')}
           </span>
           <span className="font-retro text-lg text-neon-pink mx-8">
-            ★ El lugar más épico del internet ★
+            ★ {t('header.epic')} ★
           </span>
           <span className="font-retro text-lg text-star-gold mx-8">
-            🌟 ¡Nuevas actualizaciones cada semana! 
+            🌟 {t('header.updates')}
           </span>
           <span className="font-retro text-lg text-neon-cyan mx-8">
-            🎮 ¡Únete a nuestra comunidad gamer! 🎮
+            🎮 {t('header.join')} 🎮
           </span>
         </div>
       </div>

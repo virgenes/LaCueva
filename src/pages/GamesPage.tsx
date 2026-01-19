@@ -9,8 +9,9 @@ import { MobileLayout } from '@/components/MobileLayout';
 import { PageTransition } from '@/components/PageTransition';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useFavorites } from '@/contexts/FavoritesContext';
 import { games, AVAILABLE_GENRES, AVAILABLE_PLATFORMS, Game } from '@/data/gamesData';
-import { X, Download, Play, Info, ArrowLeft, Filter, Monitor, Smartphone, Gamepad2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Download, Play, Info, ArrowLeft, Filter, Monitor, Smartphone, Gamepad2, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 
 const GAMES_PER_PAGE = 12;
 
@@ -18,9 +19,11 @@ const GamesPage = () => {
   const navigate = useNavigate();
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
   const { t } = useSettings();
+  const { isGameFavorite, toggleFavoriteGame, getFavoriteGamesCount } = useFavorites();
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [externalLink, setExternalLink] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,9 +36,10 @@ const GamesPage = () => {
         game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         game.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         game.genres.some(g => g.toLowerCase().includes(searchQuery.toLowerCase()));
-      return matchesGenre && matchesPlatform && matchesSearch;
+      const matchesFavorite = !showFavoritesOnly || isGameFavorite(game.id);
+      return matchesGenre && matchesPlatform && matchesSearch && matchesFavorite;
     });
-  }, [selectedGenre, selectedPlatform, searchQuery]);
+  }, [selectedGenre, selectedPlatform, searchQuery, showFavoritesOnly, isGameFavorite]);
 
   const totalPages = Math.ceil(filteredGames.length / GAMES_PER_PAGE);
   const paginatedGames = filteredGames.slice((currentPage - 1) * GAMES_PER_PAGE, currentPage * GAMES_PER_PAGE);
@@ -99,8 +103,19 @@ const GamesPage = () => {
               </select>
             </div>
 
-            {/* Results count */}
-            <div className="text-center mb-3">
+            {/* Favorites filter */}
+            <div className="flex items-center justify-between mb-3">
+              <button
+                onClick={() => { playClick(); setShowFavoritesOnly(!showFavoritesOnly); setCurrentPage(1); }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-sm border-2 font-retro text-sm transition-all ${
+                  showFavoritesOnly 
+                    ? 'bg-neon-pink/20 border-neon-pink text-neon-pink' 
+                    : 'border-border text-muted-foreground'
+                }`}
+              >
+                <Heart size={14} className={showFavoritesOnly ? 'fill-neon-pink' : ''} />
+                {getFavoriteGamesCount()}
+              </button>
               <span className="font-retro text-sm text-star-gold">
                 ⭐ {filteredGames.length} {t('games.found')}
               </span>
@@ -111,39 +126,48 @@ const GamesPage = () => {
               {paginatedGames.map((game) => (
                 <div
                   key={game.id}
-                  onClick={() => openGameModal(game)}
                   className="group cursor-pointer bg-muted/30 rounded-sm border-2 border-border 
                     hover:border-neon-cyan active:scale-95 transition-all duration-200
-                    hover:shadow-[0_0_15px_rgba(0,255,255,0.3)]"
+                    hover:shadow-[0_0_15px_rgba(0,255,255,0.3)] relative"
                 >
-                  <div className="relative h-24 bg-night-deep/50 overflow-hidden rounded-t-sm">
-                    {game.cover && !game.cover.includes('placeholder') ? (
-                      <img 
-                        src={game.cover} 
-                        alt={game.title} 
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neon-cyan/20 to-neon-pink/20">
-                        <span className="text-3xl">🎮</span>
+                  {/* Favorite button */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); playClick(); toggleFavoriteGame(game.id); }}
+                    className="absolute top-1 left-1 z-10 p-1 bg-night-deep/80 rounded-sm border border-neon-pink/50"
+                  >
+                    <Heart size={12} className={`transition-all ${isGameFavorite(game.id) ? 'fill-neon-pink text-neon-pink' : 'text-muted-foreground'}`} />
+                  </button>
+                  
+                  <div onClick={() => openGameModal(game)}>
+                    <div className="relative h-24 bg-night-deep/50 overflow-hidden rounded-t-sm">
+                      {game.cover && !game.cover.includes('placeholder') ? (
+                        <img 
+                          src={game.cover} 
+                          alt={game.title} 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neon-cyan/20 to-neon-pink/20">
+                          <span className="text-3xl">🎮</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-night-deep via-transparent to-transparent" />
+                      
+                      {/* Platform badges */}
+                      <div className="absolute top-1 right-1 flex gap-0.5">
+                        {game.platforms.slice(0, 2).map((platform, i) => (
+                          <span key={i} className="bg-night-deep/90 p-0.5 rounded-sm text-neon-cyan border border-neon-cyan/30 text-[10px]">
+                            {getPlatformIcon(platform)}
+                          </span>
+                        ))}
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-night-deep via-transparent to-transparent" />
-                    
-                    {/* Platform badges */}
-                    <div className="absolute top-1 right-1 flex gap-0.5">
-                      {game.platforms.slice(0, 2).map((platform, i) => (
-                        <span key={i} className="bg-night-deep/90 p-0.5 rounded-sm text-neon-cyan border border-neon-cyan/30 text-[10px]">
-                          {getPlatformIcon(platform)}
-                        </span>
-                      ))}
                     </div>
-                  </div>
-                  <div className="p-2">
-                    <h3 className="font-pixel text-[7px] text-accent line-clamp-2 group-hover:text-primary transition-colors">
-                      {game.title}
-                    </h3>
-                    <span className="font-retro text-[10px] text-neon-cyan">{game.genres[0]}</span>
+                    <div className="p-2">
+                      <h3 className="font-pixel text-[7px] text-accent line-clamp-2 group-hover:text-primary transition-colors">
+                        {game.title}
+                      </h3>
+                      <span className="font-retro text-[10px] text-neon-cyan">{game.genres[0]}</span>
+                    </div>
                   </div>
                 </div>
               ))}

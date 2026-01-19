@@ -1,24 +1,31 @@
 import React, { useEffect, useState } from 'react';
+import { useSettings } from '@/contexts/SettingsContext'; // Importamos el contexto para traducción
 
-// Intentaremos conectar a esta API, pero si falla, la página seguirá funcionando
+// ============================================================
+// LÓGICA ORIGINAL (CONSERVADA)
+// ============================================================
 const NAMESPACE = 'la-cueva-virgenes';
 const KEY = 'unique-visitors-v1';
 
 export const VisitorCounter: React.FC = () => {
-  // Inicializamos con el valor guardado o uno por defecto (1234)
+  // 1. Hook para traducción (Nuevo)
+  const { t } = useSettings();
+
+  // 2. Estado Original (Conservado porque funciona bien con localStorage)
   const [count, setCount] = useState<number>(() => {
     const saved = localStorage.getItem('fallback-visitor-count');
     return saved ? parseInt(saved) : 1234;
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  // 3. useEffect Original (Conservado: usa tu API que sí funciona)
   useEffect(() => {
     const countVisitor = async () => {
       try {
         const hasVisited = sessionStorage.getItem('visitor-counted');
         const mode = hasVisited ? 'get' : 'up';
         
-        // El bloque try-catch asegura que si esta línea falla, no rompa la página
+        // Usamos tu endpoint original
         const response = await fetch(`https://counter.hygge.moe/${mode}/${NAMESPACE}-${KEY}`);
         
         if (response.ok) {
@@ -47,7 +54,11 @@ export const VisitorCounter: React.FC = () => {
 
   return (
     <div className="game-card px-4 py-2 flex items-center gap-2">
-      <span className="font-retro text-lg text-muted-foreground">visitantes únicos:</span>
+      {/* CAMBIO: Texto traducible */}
+      <span className="font-retro text-lg text-muted-foreground">
+        {t('footer.visitors')}:
+      </span>
+      
       <div className="flex gap-1">
         {digits.map((digit, i) => (
           <span 
@@ -55,6 +66,8 @@ export const VisitorCounter: React.FC = () => {
             className={`w-6 h-8 bg-night-deep border border-neon-cyan flex items-center justify-center 
               font-pixel text-sm text-neon-cyan transition-all duration-300
               ${isLoading ? 'animate-pulse' : ''}`}
+            // AGREGADO: Pequeño detalle visual del código nuevo (retraso de animación)
+            style={{ animationDelay: `${i * 100}ms` }}
           >
             {digit}
           </span>
