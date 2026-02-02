@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
+// ============================================================
+// IMPORTACIÓN DE MÚSICA - RESTAURADO DEL CÓDIGO ANTIGUO
+// ============================================================
+import zeldaTheme from '@/assets/music/zelda-theme.opus';
+import lofiTrack from '@/assets/music/lofi-relaxing.opus';
+import vibRibbon from '@/assets/music/vib-ribbon.opus';
+
 export type ThemeColor = 'default' | 'ocean' | 'forest' | 'sunset' | 'galaxy';
 export type BackgroundMusicType = 'none' | 'lofi' | 'vib-ribbon' | 'zelda';
 export type Language = 'es' | 'en';
@@ -157,11 +164,14 @@ const THEME_VARIABLES: Record<ThemeColor, Record<string, string>> = {
   galaxy: { '--neon-cyan': '270 100% 60%', '--neon-pink': '300 100% 60%', '--neon-purple': '260 80% 55%', '--star-gold': '280 100% 70%', '--primary': '270 100% 60%', '--secondary': '300 100% 60%', '--accent': '290 100% 65%' },
 };
 
+// ============================================================
+// ARCHIVOS DE MÚSICA - RESTAURADO DEL CÓDIGO ANTIGUO
+// ============================================================
 const MUSIC_FILES: Record<BackgroundMusicType, string> = {
   none: '',
-  lofi: 'src/assets/music/lofi-relaxing.opus',
-  'vib-ribbon': 'src/assets/music/vib-ribbon.opus',
-  zelda: '/src/assets/music/zelda-theme.opus',
+  lofi: lofiTrack,
+  'vib-ribbon': vibRibbon,
+  zelda: zeldaTheme,
 };
 
 const DEFAULT_PERFORMANCE: PerformanceSettings = {
@@ -210,7 +220,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     });
   }, [theme]);
 
-  // Handle background music
+  // Handle background music - RESTAURADO DEL CÓDIGO ANTIGUO
   useEffect(() => {
     if (backgroundMusic === 'none') {
       if (audioRef.current) {
@@ -230,6 +240,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       audioRef.current.volume = bgMusicVolume;
     } else {
       audioRef.current.src = musicFile;
+      if (isBgMusicPlaying) {
+        audioRef.current.play().catch(() => setIsBgMusicPlaying(false));
+      }
     }
   }, [backgroundMusic]);
 
@@ -248,7 +261,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const setBackgroundMusic = useCallback((newMusic: BackgroundMusicType) => {
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current = null;
     }
     setBackgroundMusicState(newMusic);
     setIsBgMusicPlaying(false);
@@ -266,8 +278,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         audioRef.current.loop = true;
         audioRef.current.volume = bgMusicVolume;
       }
-      audioRef.current.play().catch(() => {});
-      setIsBgMusicPlaying(true);
+      audioRef.current.play()
+        .then(() => setIsBgMusicPlaying(true))
+        .catch(() => setIsBgMusicPlaying(false));
     }
   }, [backgroundMusic, isBgMusicPlaying, bgMusicVolume]);
 
