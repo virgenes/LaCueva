@@ -40,7 +40,7 @@ const SettingsContext = createContext<SettingsContextType | null>(null);
 
 const translations: Record<Language, Record<string, string>> = {
   es: {
-    'nav.home': 'Inicio', 'nav.games': 'Juegos', 'nav.music': 'Música', 'nav.art': 'Arte',
+    'nav.home': 'Inicio', 'nav.games': 'Juegos', 'nav.music': 'Música', 'nav.art': 'Arte', 'nav.minigames': 'Mini Juegos',
     'nav.explore': 'Explorar', 'nav.settings': 'Config', 'nav.back': 'Volver al Inicio',
     'section.forYou': 'PARA TI', 'section.faq': '¡Pregúntanos!', 'section.gallery': 'Galería',
     'section.guestbook': 'Libro de Visitas', 'section.updates': 'ACTUALIZACIONES DEL SITIO',
@@ -94,7 +94,7 @@ const translations: Record<Language, Record<string, string>> = {
     'about.explore2': ', hice una guía que te puede ayudar. ¡Explica las conexiones entre todo! Y si deseas un acceso más directo, puedes darle clicks a los iconitos que están abajo para revisar rápidamente.',
   },
   en: {
-    'nav.home': 'Home', 'nav.games': 'Games', 'nav.music': 'Music', 'nav.art': 'Art',
+    'nav.home': 'Home', 'nav.games': 'Games', 'nav.music': 'Music', 'nav.art': 'Art', 'nav.minigames': 'Minigames',
     'nav.explore': 'Explore', 'nav.settings': 'Settings', 'nav.back': 'Back to Home',
     'section.forYou': 'FOR YOU', 'section.faq': 'Ask Us!', 'section.gallery': 'Gallery',
     'section.guestbook': 'Guest Book', 'section.updates': 'SITE UPDATES',
@@ -159,9 +159,9 @@ const THEME_VARIABLES: Record<ThemeColor, Record<string, string>> = {
 
 const MUSIC_FILES: Record<BackgroundMusicType, string> = {
   none: '',
-  lofi: 'LaCueva/src/assets/music/lofi-relaxing.opus',
-  'vib-ribbon': 'LaCueva/src/assets/music/vib-ribbon.opus',
-  zelda: 'LaCueva/src/assets/music/zelda-theme.opus',
+  lofi: 'src/assets/music/lofi-relaxing.opus',
+  'vib-ribbon': 'src/assets/music/vib-ribbon.opus',
+  zelda: '/src/assets/music/zelda-theme.opus',
 };
 
 const DEFAULT_PERFORMANCE: PerformanceSettings = {
