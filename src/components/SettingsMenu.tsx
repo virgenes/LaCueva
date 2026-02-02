@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
-import { useSettings, ThemeColor, BackgroundMusicType, Language } from '@/contexts/SettingsContext';
-import { X, Settings, Palette, Globe, Music, Volume2, VolumeX, AlertCircle, MousePointer2 } from 'lucide-react';
+import { useSettings, ThemeColor, BackgroundMusicType, Language, PerformanceSettings } from '@/contexts/SettingsContext';
+import { X, Settings, Palette, Globe, Music, Volume2, VolumeX, AlertCircle, MousePointer2, Zap, Sparkles, Volume1, Eye, EyeOff } from 'lucide-react';
 
 interface SettingsMenuProps {
   isOpen: boolean;
@@ -32,6 +32,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
     isBgMusicPlaying, toggleBgMusic,
     bgMusicVolume, setBgMusicVolume,
     customCursorEnabled, setCustomCursorEnabled,
+    performanceSettings, setPerformanceSetting,
     t 
   } = useSettings();
 
@@ -252,6 +253,66 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
             )}
           </div>
 
+          {/* Performance/Graphics Section */}
+          <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-neon-cyan transition-colors">
+            <div className="flex items-center gap-2 mb-3">
+              <Zap size={18} className="text-neon-cyan" />
+              <h3 className="font-pixel text-[10px] text-accent">
+                {t('settings.performance')}
+              </h3>
+            </div>
+            <p className="font-retro text-xs text-muted-foreground mb-3">
+              {t('settings.performanceHint')}
+            </p>
+            
+            <div className="space-y-2">
+              {/* Animations toggle */}
+              <PerformanceToggle
+                label={t('settings.animations')}
+                enabled={performanceSettings.animationsEnabled}
+                onToggle={() => { playClick(); setPerformanceSetting('animationsEnabled', !performanceSettings.animationsEnabled); }}
+                onHover={playHover}
+                icon={<Sparkles size={14} />}
+              />
+              
+              {/* Particles toggle */}
+              <PerformanceToggle
+                label={t('settings.particles')}
+                enabled={performanceSettings.particlesEnabled}
+                onToggle={() => { playClick(); setPerformanceSetting('particlesEnabled', !performanceSettings.particlesEnabled); }}
+                onHover={playHover}
+                icon={<span className="text-sm">✨</span>}
+              />
+              
+              {/* Neon effects toggle */}
+              <PerformanceToggle
+                label={t('settings.neonEffects')}
+                enabled={performanceSettings.neonEffectsEnabled}
+                onToggle={() => { playClick(); setPerformanceSetting('neonEffectsEnabled', !performanceSettings.neonEffectsEnabled); }}
+                onHover={playHover}
+                icon={<span className="text-sm">💡</span>}
+              />
+              
+              {/* Sound effects toggle */}
+              <PerformanceToggle
+                label={t('settings.soundEffects')}
+                enabled={performanceSettings.soundEffectsEnabled}
+                onToggle={() => { playClick(); setPerformanceSetting('soundEffectsEnabled', !performanceSettings.soundEffectsEnabled); }}
+                onHover={playHover}
+                icon={<Volume1 size={14} />}
+              />
+              
+              {/* Floating assets toggle */}
+              <PerformanceToggle
+                label={t('settings.floatingAssets')}
+                enabled={performanceSettings.floatingAssetsEnabled}
+                onToggle={() => { playClick(); setPerformanceSetting('floatingAssetsEnabled', !performanceSettings.floatingAssetsEnabled); }}
+                onHover={playHover}
+                icon={<span className="text-sm">🎈</span>}
+              />
+            </div>
+          </div>
+
           {/* Custom Cursor Section */}
           <div className="bg-muted/30 rounded-sm p-4 border-2 border-border hover:border-neon-purple transition-colors">
             <div className="flex items-center justify-between">
@@ -297,3 +358,34 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ isOpen, onClose }) =
     </div>
   );
 };
+
+// Componente reutilizable para toggles de rendimiento
+interface PerformanceToggleProps {
+  label: string;
+  enabled: boolean;
+  onToggle: () => void;
+  onHover: () => void;
+  icon: React.ReactNode;
+}
+
+const PerformanceToggle: React.FC<PerformanceToggleProps> = ({ label, enabled, onToggle, onHover, icon }) => (
+  <div className="flex items-center justify-between py-2 px-2 rounded-sm hover:bg-muted/30 transition-colors">
+    <div className="flex items-center gap-2">
+      <span className="text-neon-cyan">{icon}</span>
+      <span className="font-retro text-sm text-foreground">{label}</span>
+    </div>
+    <button
+      onClick={onToggle}
+      onMouseEnter={onHover}
+      className={`w-12 h-6 rounded-full transition-all relative ${
+        enabled 
+          ? 'bg-neon-cyan shadow-[0_0_8px_rgba(0,255,255,0.4)]' 
+          : 'bg-muted border border-border'
+      }`}
+    >
+      <span className={`absolute top-1 w-4 h-4 rounded-full transition-all ${
+        enabled ? 'bg-night-deep left-7' : 'bg-foreground left-1'
+      }`} />
+    </button>
+  </div>
+);

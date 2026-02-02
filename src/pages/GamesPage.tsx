@@ -11,14 +11,14 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { games, AVAILABLE_GENRES, AVAILABLE_PLATFORMS, Game } from '@/data/gamesData';
-import { X, Download, Play, Info, ArrowLeft, Filter, Monitor, Smartphone, Gamepad2, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { X, Download, Play, Info, ArrowLeft, Filter, Monitor, Smartphone, Gamepad2, ChevronLeft, ChevronRight, Heart, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 const GAMES_PER_PAGE = 12;
 
 const GamesPage = () => {
   const navigate = useNavigate();
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
-  const { t } = useSettings();
+  const { t, adultContentEnabled, setAdultContentEnabled } = useSettings();
   const { isGameFavorite, toggleFavoriteGame, getFavoriteGamesCount } = useFavorites();
   const [selectedGame, setSelectedGame] = useState<Game | null>(null);
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
@@ -27,6 +27,8 @@ const GamesPage = () => {
   const [externalLink, setExternalLink] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAdultWarning, setShowAdultWarning] = useState(false);
+  const [showAdultGames, setShowAdultGames] = useState(false);
 
   const filteredGames = useMemo(() => {
     return games.filter(game => {
@@ -37,9 +39,11 @@ const GamesPage = () => {
         game.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         game.genres.some(g => g.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesFavorite = !showFavoritesOnly || isGameFavorite(game.id);
-      return matchesGenre && matchesPlatform && matchesSearch && matchesFavorite;
+      // Filtrar juegos +18 si no está habilitado
+      const matchesAdultFilter = showAdultGames ? true : !game.isAdult;
+      return matchesGenre && matchesPlatform && matchesSearch && matchesFavorite && matchesAdultFilter;
     });
-  }, [selectedGenre, selectedPlatform, searchQuery, showFavoritesOnly, isGameFavorite]);
+  }, [selectedGenre, selectedPlatform, searchQuery, showFavoritesOnly, isGameFavorite, showAdultGames]);
 
   const totalPages = Math.ceil(filteredGames.length / GAMES_PER_PAGE);
   const paginatedGames = filteredGames.slice((currentPage - 1) * GAMES_PER_PAGE, currentPage * GAMES_PER_PAGE);
@@ -53,6 +57,27 @@ const GamesPage = () => {
   const openGameModal = (game: Game) => { playMenuOpen(); setSelectedGame(game); };
   const closeModal = () => { playClick(); setSelectedGame(null); };
   const handleExternalLink = (url: string) => { playClick(); setExternalLink(url); };
+
+  const handleAdultToggle = () => {
+    playClick();
+    if (!showAdultGames && !adultContentEnabled) {
+      setShowAdultWarning(true);
+    } else {
+      setShowAdultGames(!showAdultGames);
+    }
+  };
+
+  const confirmAdultContent = () => {
+    playClick();
+    setAdultContentEnabled(true);
+    setShowAdultGames(true);
+    setShowAdultWarning(false);
+  };
+
+  const cancelAdultContent = () => {
+    playClick();
+    setShowAdultWarning(false);
+  };
 
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
@@ -103,8 +128,8 @@ const GamesPage = () => {
               </select>
             </div>
 
-            {/* Favorites filter */}
-            <div className="flex items-center justify-between mb-3">
+            {/* Favorites and Adult filter */}
+            <div className="flex items-center justify-between mb-3 gap-2">
               <button
                 onClick={() => { playClick(); setShowFavoritesOnly(!showFavoritesOnly); setCurrentPage(1); }}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-sm border-2 font-retro text-sm transition-all ${
@@ -116,20 +141,41 @@ const GamesPage = () => {
                 <Heart size={14} className={showFavoritesOnly ? 'fill-neon-pink' : ''} />
                 {getFavoriteGamesCount()}
               </button>
-              <span className="font-retro text-sm text-star-gold">
+
+              {/* Adult content toggle */}
+              <button
+                onClick={handleAdultToggle}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-sm border-2 font-retro text-xs transition-all ${
+                  showAdultGames 
+                    ? 'bg-red-500/20 border-red-500 text-red-400' 
+                    : 'border-border text-muted-foreground'
+                }`}
+              >
+                <ShieldAlert size={14} />
+                +18
+              </button>
+
+              <span className="font-retro text-sm text-star-gold flex-1 text-right">
                 ⭐ {filteredGames.length} {t('games.found')}
               </span>
             </div>
 
             {/* Games Grid */}
             <div className="grid grid-cols-2 gap-3">
-              {paginatedGames.map((game) => (
+                {paginatedGames.map((game) => (
                 <div
                   key={game.id}
-                  className="group cursor-pointer bg-muted/30 rounded-sm border-2 border-border 
+                  className={`group cursor-pointer bg-muted/30 rounded-sm border-2 border-border 
                     hover:border-neon-cyan active:scale-95 transition-all duration-200
-                    hover:shadow-[0_0_15px_rgba(0,255,255,0.3)] relative"
+                    hover:shadow-[0_0_15px_rgba(0,255,255,0.3)] relative ${game.isAdult ? 'ring-2 ring-red-500/50' : ''}`}
                 >
+                  {/* Adult badge */}
+                  {game.isAdult && (
+                    <div className="absolute top-1 right-1 z-10 px-1.5 py-0.5 bg-red-600 rounded-sm">
+                      <span className="font-pixel text-[8px] text-white">+18</span>
+                    </div>
+                  )}
+                  
                   {/* Favorite button */}
                   <button
                     onClick={(e) => { e.stopPropagation(); playClick(); toggleFavoriteGame(game.id); }}
@@ -154,7 +200,7 @@ const GamesPage = () => {
                       <div className="absolute inset-0 bg-gradient-to-t from-night-deep via-transparent to-transparent" />
                       
                       {/* Platform badges */}
-                      <div className="absolute top-1 right-1 flex gap-0.5">
+                      <div className={`absolute ${game.isAdult ? 'top-7' : 'top-1'} right-1 flex gap-0.5`}>
                         {game.platforms.slice(0, 2).map((platform, i) => (
                           <span key={i} className="bg-night-deep/90 p-0.5 rounded-sm text-neon-cyan border border-neon-cyan/30 text-[10px]">
                             {getPlatformIcon(platform)}
@@ -286,9 +332,25 @@ const GamesPage = () => {
                 </select>
               </div>
 
-              <div className="font-retro text-sm text-star-gold ml-auto flex items-center gap-2">
-                <span className="animate-pulse">⭐</span>
-                {filteredGames.length} {t('games.found')}
+              <div className="font-retro text-sm text-star-gold ml-auto flex items-center gap-4">
+                {/* Adult content toggle - Desktop */}
+                <button
+                  onClick={handleAdultToggle}
+                  onMouseEnter={playHover}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-sm border-2 font-retro text-sm transition-all ${
+                    showAdultGames 
+                      ? 'bg-red-500/20 border-red-500 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.3)]' 
+                      : 'border-border text-muted-foreground hover:border-red-500/50'
+                  }`}
+                >
+                  <ShieldAlert size={16} />
+                  {t('games.adultFilter')}
+                </button>
+
+                <span className="flex items-center gap-2">
+                  <span className="animate-pulse">⭐</span>
+                  {filteredGames.length} {t('games.found')}
+                </span>
               </div>
             </div>
           </div>
@@ -300,10 +362,18 @@ const GamesPage = () => {
                 key={game.id}
                 onClick={() => openGameModal(game)}
                 onMouseEnter={playHover}
-                className="group cursor-pointer bg-gradient-to-br from-muted/40 to-night-deep/60 rounded-sm border-2 border-border 
-                  hover:border-neon-cyan hover:shadow-[0_0_20px_rgba(0,255,255,0.3)] transition-all duration-300 transform hover:scale-[1.02]"
+                className={`group cursor-pointer bg-gradient-to-br from-muted/40 to-night-deep/60 rounded-sm border-2 border-border 
+                  hover:border-neon-cyan hover:shadow-[0_0_20px_rgba(0,255,255,0.3)] transition-all duration-300 transform hover:scale-[1.02]
+                  ${game.isAdult ? 'ring-2 ring-red-500/50' : ''}`}
               >
                 <div className="relative h-28 sm:h-32 lg:h-36 bg-night-deep/50 overflow-hidden rounded-t-sm">
+                  {/* Adult badge */}
+                  {game.isAdult && (
+                    <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-red-600 rounded-sm shadow-lg">
+                      <span className="font-pixel text-[8px] text-white">+18</span>
+                    </div>
+                  )}
+                  
                   {game.cover && !game.cover.includes('placeholder') ? (
                     <img src={game.cover} alt={game.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
@@ -474,6 +544,55 @@ const GamesPage = () => {
       <ExternalLinkDialog url={externalLink || ''} isOpen={!!externalLink} 
         onConfirm={() => { window.open(externalLink || '', '_blank'); setExternalLink(null); }}
         onCancel={() => setExternalLink(null)} />
+
+      {/* Adult Content Warning Modal */}
+      {showAdultWarning && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-night-deep/95 backdrop-blur-sm">
+          <div className="w-full max-w-md game-card relative animate-bounce-in border-4 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.5)]">
+            <div className="text-center space-y-4">
+              {/* Warning Icon */}
+              <div className="flex justify-center">
+                <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center border-4 border-red-500 animate-pulse">
+                  <AlertTriangle size={40} className="text-red-500" />
+                </div>
+              </div>
+
+              {/* Title */}
+              <h2 className="font-pixel text-lg text-red-400">
+                {t('adult.warning.title')}
+              </h2>
+
+              {/* Message */}
+              <p className="font-retro text-sm text-foreground leading-relaxed px-4">
+                {t('adult.warning.message')}
+              </p>
+
+              {/* Age restriction badge */}
+              <div className="flex justify-center">
+                <span className="font-pixel text-2xl px-6 py-2 bg-red-600 text-white rounded-sm">
+                  +18
+                </span>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-4 justify-center pt-4">
+                <RetroButton
+                  variant="cyan"
+                  onClick={cancelAdultContent}
+                >
+                  {t('adult.warning.cancel')}
+                </RetroButton>
+                <RetroButton
+                  variant="pink"
+                  onClick={confirmAdultContent}
+                >
+                  {t('adult.warning.confirm')}
+                </RetroButton>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </PageTransition>
   );

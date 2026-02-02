@@ -1,17 +1,17 @@
 // ============================================================
-// 馃幃 CAT脕LOGO DE JUEGOS - LA CUEVA DE LOS V脥RGENES 馃幃
+// ?? CATáLOGO DE JUEGOS - LA CUEVA DE LOS VíRGENES ??
 // ============================================================
 // 
 // INSTRUCCIONES PARA AGREGAR JUEGOS:
-// 1. Copia el template de abajo y p茅galo al final del array "games"
-// 2. Rellena cada campo seg煤n se indica
+// 1. Copia el template de abajo y pégalo al final del array "games"
+// 2. Rellena cada campo según se indica
 // 3. Guarda el archivo y listo!
 //
 // TEMPLATE:
 // {
-//   id: [n煤mero 煤nico],
+//   id: [número único],
 //   title: "NOMBRE DEL JUEGO",
-//   description: "Descripci贸n adicional (opcional)",
+//   description: "Descripción adicional (opcional)",
 //   cover: "https://i.imgur.com/[ID_DE_IMAGEN].png",
 //   genres: ["GENERO1", "GENERO2"],
 //   platforms: ["PC", "SWITCH", "ANDROID", etc.],
@@ -22,10 +22,10 @@
 //     ],
 //     SWITCH: [
 //       { name: "Juego Base", url: "https://..." },
-//       { name: "Actualizaci贸n", url: "https://..." },
+//       { name: "Actualización", url: "https://..." },
 //       { name: "DLC's", url: "https://..." },
 //     ],
-//     // ... m谩s plataformas
+//     // ... más plataformas
 //   }
 // }
 // ============================================================
@@ -56,22 +56,23 @@ export interface Game {
   genres: string[];
   platforms: string[];
   downloads: GameDownloads;
+  isAdult?: boolean; // true = juego solo para mayores de 18
 }
 
-// Lista de g茅neros disponibles para filtrar
+// Lista de géneros disponibles para filtrar
 export const AVAILABLE_GENRES = [
-  "DUNGEON", "DEPORTE", "DISPAROS", "ACCI脫N", "CARRERAS", 
+  "DUNGEON", "DEPORTE", "DISPAROS", "ACCIóN", "CARRERAS", 
   "PLATAFORMAS", "COOP", "PELEA", "RITMO", "TERROR", 
   "ROGUE-LIKE", "AVENTURA", "KART"
 ];
 
 // Lista de plataformas disponibles
 export const AVAILABLE_PLATFORMS = [
-  "PC", "SWITCH", "ANDROID", "PS2", "PS1", "WII", "GAMECUBE", "STEAM"
+  "PC", "SWITCH", "ANDROID", "PS2", "WII", "GAMECUBE", "STEAM", "PLAY_STORE"
 ];
 
 // ============================================================
-// 馃幃 LISTA DE JUEGOS - EDITA AQU脥 ABAJO 馃幃
+// ?? LISTA DE JUEGOS - EDITA AQUí ABAJO ??
 // ============================================================
 export const games: Game[] = [
   {
@@ -87,7 +88,7 @@ export const games: Game[] = [
       ],
       SWITCH: [
         { name: "Juego Base", url: "https://1fichier.com/?poag198jbgu4a1833eup&af=327151" },
-        { name: "Actualizaci贸n", url: "https://1fichier.com/?xebkn1eluhmvt42zluvy" },
+        { name: "Actualización", url: "https://1fichier.com/?xebkn1eluhmvt42zluvy" },
         { name: "DLC's", url: "https://files3.cloud/switch-roms/Minecraft_Dungeons_7DLC.rar" },
       ],
     },
@@ -108,9 +109,9 @@ export const games: Game[] = [
   {
     id: 3,
     title: "SERIOUS SAM 3 BFE",
-    description: "Este juego no tiene formato portable, es tipo ISO, tra铆do desde la p谩gina Blizzboygames, contrase帽a si tienen alg煤n problema: www.blizzboygames.net",
+    description: "Este juego no tiene formato portable, es tipo ISO, traído desde la página Blizzboygames, contrase?a si tienen algún problema: www.blizzboygames.net",
     cover: "https://i.imgur.com/ZpE9JDd.png",
-    genres: ["DISPAROS", "ACCI脫N"],
+    genres: ["DISPAROS", "ACCIóN"],
     platforms: ["PC"],
     downloads: {
       PC: [
@@ -125,7 +126,7 @@ export const games: Game[] = [
     id: 4,
     title: "SONIC RIDERS",
     cover: "https://i.imgur.com/zdSocVz.png",
-    genres: ["ACCI脫N", "CARRERAS"],
+    genres: ["ACCIóN", "CARRERAS"],
     platforms: ["PS2", "GAMECUBE"],
     downloads: {
       PS2: [
@@ -168,7 +169,7 @@ export const games: Game[] = [
     id: 7,
     title: "DRAGON BALL FIGHTERZ",
     cover: "https://i.imgur.com/5LEwNEJ.png",
-    genres: ["PELEA", "ACCI脫N"],
+    genres: ["PELEA", "ACCIóN"],
     platforms: ["PC", "SWITCH"],
     downloads: {
       PC: [
@@ -177,7 +178,7 @@ export const games: Game[] = [
       ],
       SWITCH: [
         { name: "Juego (XCI)", url: "https://1fichier.com/?q7x10hvi5554mche19u6?af=5006637" },
-        { name: "Actualizaci贸n (v01.42)", url: "https://fileq.net/xsqi4wouwt8l.html" },
+        { name: "Actualización (v01.42)", url: "https://fileq.net/xsqi4wouwt8l.html" },
         { name: "DLC's", url: "https://1fichier.com/?pzgengxy2gdxjlye1rl1?af=5006637" },
       ],
     },
@@ -228,7 +229,7 @@ export const games: Game[] = [
     id: 11,
     title: "HOTLINE MIAMI 2",
     cover: "https://i.imgur.com/NRU0XnI.png",
-    genres: ["ACCI脫N", "DISPAROS"],
+    genres: ["ACCIóN", "DISPAROS"],
     platforms: ["PC", "ANDROID"],
     downloads: {
       PC: [
@@ -303,7 +304,7 @@ export const games: Game[] = [
       ],
       SWITCH: [
         { name: "Juego Base", url: "https://1fichier.com/?og2tpa5awxlqervz2ps5&af=1951572" },
-        { name: "Actualizaci贸n", url: "https://1fichier.com/?s65biyfm5dj3wv2c7ssb&af=1951572" },
+        { name: "Actualización", url: "https://1fichier.com/?s65biyfm5dj3wv2c7ssb&af=1951572" },
       ],
     },
   },
@@ -339,7 +340,7 @@ export const games: Game[] = [
     id: 18,
     title: "SOUL KNIGHT",
     cover: "https://i.imgur.com/placeholder.png",
-    genres: ["AVENTURA", "ACCI脫N"],
+    genres: ["AVENTURA", "ACCIóN"],
     platforms: ["ANDROID"],
     downloads: {
       PLAY_STORE: [
@@ -363,14 +364,14 @@ export const games: Game[] = [
       ],
       SWITCH: [
         { name: "Juego Base", url: "https://1fichier.com/?2q8pq0uaeo704nwh2lhr&af=1951572" },
-        { name: "Actualizaci贸n", url: "https://1fichier.com/?eny21nkgh789vz5y40sg&af=1951572" },
+        { name: "Actualización", url: "https://1fichier.com/?eny21nkgh789vz5y40sg&af=1951572" },
       ],
     },
   },
   {
     id: 20,
     title: "TERRARIA",
-    description: "Contrase帽a del archivo de PC: elenemigos.com",
+    description: "Contrase?a del archivo de PC: elenemigos.com",
     cover: "https://i.imgur.com/A9SdFq0.png",
     genres: ["AVENTURA"],
     platforms: ["PC", "ANDROID", "SWITCH"],
@@ -384,16 +385,16 @@ export const games: Game[] = [
       ],
       SWITCH: [
         { name: "Juego Base", url: "https://1fichier.com/?yygmrm1yecxe1oxleybz" },
-        { name: "Actualizaci贸n", url: "https://1fichier.com/?ldwm56681s77r6xq387k&af=1951572" },
+        { name: "Actualización", url: "https://1fichier.com/?ldwm56681s77r6xq387k&af=1951572" },
       ],
     },
   },
   {
     id: 21,
     title: "HOLLOW KNIGHT",
-    description: "Contrase帽a del archivo de PC: elenemigos.com",
+    description: "Contrase?a del archivo de PC: elenemigos.com",
     cover: "https://i.imgur.com/nbjlc7t.png",
-    genres: ["AVENTURA", "ACCI脫N"],
+    genres: ["AVENTURA", "ACCIóN"],
     platforms: ["PC", "ANDROID", "SWITCH"],
     downloads: {
       PC: [
@@ -411,7 +412,7 @@ export const games: Game[] = [
   {
     id: 22,
     title: "STARDEW VALLEY",
-    description: "Contrase帽a del archivo de PC: elenemigos.com",
+    description: "Contrase?a del archivo de PC: elenemigos.com",
     cover: "https://i.imgur.com/NXHgtii.png",
     genres: ["AVENTURA"],
     platforms: ["PC", "ANDROID", "SWITCH"],
@@ -425,7 +426,7 @@ export const games: Game[] = [
       ],
       SWITCH: [
         { name: "Juego Base", url: "https://1fichier.com/?sw0q964nfrvadqz02qu9&af=1951572" },
-        { name: "Actualizaci贸n", url: "https://1fichier.com/?qmlaapqa56e05v35sk45&af=1951572" },
+        { name: "Actualización", url: "https://1fichier.com/?qmlaapqa56e05v35sk45&af=1951572" },
       ],
     },
   },
@@ -434,7 +435,7 @@ export const games: Game[] = [
     title: "BEATBLOCK",
     cover: "https://i.imgur.com/qp1F3wb.png",
     genres: ["RITMO"],
-    platforms: ["PC", "STEAM"],
+    platforms: ["PC"],
     downloads: {
       DEMO: [
         { name: "Demo (Itch.io)", url: "https://bubbletabby.itch.io/beatblock" },
@@ -447,7 +448,7 @@ export const games: Game[] = [
   {
     id: 24,
     title: "MUSE DASH",
-    description: "Contrase帽a del archivo de PC: elenemigos.com",
+    description: "Contrase?a del archivo de PC: elenemigos.com",
     cover: "https://i.imgur.com/eU14Qc4.png",
     genres: ["RITMO"],
     platforms: ["SWITCH", "PC", "ANDROID"],
@@ -470,7 +471,7 @@ export const games: Game[] = [
     title: "VIB-RIBBON",
     cover: "https://i.imgur.com/xBdYr6U.png",
     genres: ["RITMO"],
-    platforms: ["PS1"],
+    platforms: ["PS2"],
     downloads: {
       PS2: [
         { name: "Romsfun", url: "https://sto1.romsforever.co/0:/PSX-CHD/Vib-Ribbon%20(Europe)%20(EnFrDeEsIt).chd?token=cH1ZalNgXU9HEG91XnYdYV9XQxlxfV59VQ%3D%3D" },
@@ -515,7 +516,7 @@ export const games: Game[] = [
       ],
       SWITCH: [
         { name: "Juego Base", url: "https://1fichier.com/?oac22tnnzht4jfxqv3ik&af=1951572" },
-        { name: "Actualizaci贸n", url: "https://1fichier.com/?10tutqix29enwveprh7j&af=1951572" },
+        { name: "Actualización", url: "https://1fichier.com/?10tutqix29enwveprh7j&af=1951572" },
       ],
     },
   },
@@ -530,7 +531,7 @@ export const games: Game[] = [
         { name: "TORRENT (No probado)", url: "https://skidrowrepack.com/index.php?do=download&id=10448" },
       ],
       PS2: [
-        { name: "MediaFire (Versi贸n segura)", url: "https://www.mediafire.com/file/nl3b4xw1kx153du" },
+        { name: "MediaFire (Versión segura)", url: "https://www.mediafire.com/file/nl3b4xw1kx153du" },
       ],
     },
   },
@@ -570,7 +571,7 @@ export const games: Game[] = [
     id: 32,
     title: "HI-FI RUSH",
     cover: "https://i.imgur.com/placeholder.png",
-    genres: ["RITMO", "ACCI脫N", "AVENTURA"],
+    genres: ["RITMO", "ACCIóN", "AVENTURA"],
     platforms: ["PC"],
     downloads: {
       PC: [
@@ -597,7 +598,7 @@ export const games: Game[] = [
     id: 34,
     title: "OSU!",
     cover: "https://i.imgur.com/placeholder.png",
-    genres: ["RITMO", "ACCI脫N"],
+    genres: ["RITMO", "ACCIóN"],
     platforms: ["PC", "ANDROID"],
     downloads: {
       OFICIAL: [

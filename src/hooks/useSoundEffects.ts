@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useSettings } from '@/contexts/SettingsContext';
 
 // Create audio context for sound effects
 const createAudioContext = () => {
@@ -9,7 +10,11 @@ const createAudioContext = () => {
 };
 
 export const useSoundEffects = () => {
+  const { performanceSettings } = useSettings();
+
   const playClick = useCallback(() => {
+    if (!performanceSettings.soundEffectsEnabled) return;
+    
     const audioContext = createAudioContext();
     if (!audioContext) return;
 
@@ -27,9 +32,11 @@ export const useSoundEffects = () => {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.1);
-  }, []);
+  }, [performanceSettings.soundEffectsEnabled]);
 
   const playHover = useCallback(() => {
+    if (!performanceSettings.soundEffectsEnabled) return;
+    
     const audioContext = createAudioContext();
     if (!audioContext) return;
 
@@ -47,9 +54,11 @@ export const useSoundEffects = () => {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.05);
-  }, []);
+  }, [performanceSettings.soundEffectsEnabled]);
 
   const playSuccess = useCallback(() => {
+    if (!performanceSettings.soundEffectsEnabled) return;
+    
     const audioContext = createAudioContext();
     if (!audioContext) return;
 
@@ -71,9 +80,11 @@ export const useSoundEffects = () => {
       oscillator.start(audioContext.currentTime + index * 0.1);
       oscillator.stop(audioContext.currentTime + index * 0.1 + 0.15);
     });
-  }, []);
+  }, [performanceSettings.soundEffectsEnabled]);
 
   const playMenuOpen = useCallback(() => {
+    if (!performanceSettings.soundEffectsEnabled) return;
+    
     const audioContext = createAudioContext();
     if (!audioContext) return;
 
@@ -92,10 +103,12 @@ export const useSoundEffects = () => {
 
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.15);
-  }, []);
+  }, [performanceSettings.soundEffectsEnabled]);
 
   // Zelda secret discovery sound effect
   const playSecretDiscovered = useCallback(() => {
+    if (!performanceSettings.soundEffectsEnabled) return;
+    
     const audioContext = createAudioContext();
     if (!audioContext) return;
 
@@ -126,7 +139,7 @@ export const useSoundEffects = () => {
       oscillator.start(audioContext.currentTime + time);
       oscillator.stop(audioContext.currentTime + time + 0.12);
     });
-  }, []);
+  }, [performanceSettings.soundEffectsEnabled]);
 
   return { playClick, playHover, playSuccess, playMenuOpen, playSecretDiscovered };
 };
