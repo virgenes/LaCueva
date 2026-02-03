@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Gamepad2, Music, Palette, Settings, Menu, X } from 'lucide-react';
+import { Home, Gamepad2, Music, Palette, Settings, Menu, X, Joystick } from 'lucide-react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { SettingsMenu } from './SettingsMenu';
 import { ExternalLinkDialog } from './ExternalLinkDialog';
+import { MiniGamesHub } from './minigames/MiniGamesHub';
 import { cn } from '@/lib/utils';
 import logoFurros from '@/assets/logo-furros.jpg';
 
@@ -25,6 +26,7 @@ export const MobileNav: React.FC = () => {
   const location = useLocation();
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [miniGamesOpen, setMiniGamesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [externalLink, setExternalLink] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: '' });
 
@@ -118,15 +120,25 @@ export const MobileNav: React.FC = () => {
               ))}
             </div>
 
-            {/* Settings */}
-            <button
-              onClick={() => { playMenuOpen(); setSettingsOpen(true); setMenuOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-star-gold/20 rounded-sm border-2 border-star-gold
-                hover:bg-star-gold/30 transition-all"
-            >
-              <Settings size={20} className="text-star-gold" />
-              <span className="font-pixel text-[10px] text-star-gold">CONFIGURACIÓN</span>
-            </button>
+            {/* Settings & Mini-Games Row */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { playMenuOpen(); setMiniGamesOpen(true); setMenuOpen(false); }}
+                className="flex flex-col items-center gap-2 px-3 py-3 bg-neon-pink/20 rounded-sm border-2 border-neon-pink
+                  hover:bg-neon-pink/30 transition-all"
+              >
+                <Joystick size={24} className="text-neon-pink" />
+                <span className="font-pixel text-[8px] text-neon-pink">MINI-JUEGOS</span>
+              </button>
+              <button
+                onClick={() => { playMenuOpen(); setSettingsOpen(true); setMenuOpen(false); }}
+                className="flex flex-col items-center gap-2 px-3 py-3 bg-star-gold/20 rounded-sm border-2 border-star-gold
+                  hover:bg-star-gold/30 transition-all"
+              >
+                <Settings size={24} className="text-star-gold" />
+                <span className="font-pixel text-[8px] text-star-gold">AJUSTES</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -176,6 +188,7 @@ export const MobileNav: React.FC = () => {
       <div className="md:hidden h-16" /> {/* Top spacer */}
 
       <SettingsMenu isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <MiniGamesHub isOpen={miniGamesOpen} onClose={() => setMiniGamesOpen(false)} />
       
       <ExternalLinkDialog
         isOpen={externalLink.isOpen}

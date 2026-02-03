@@ -1,40 +1,57 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
-import { X, RotateCcw, Trophy } from 'lucide-react';
+import { X, RotateCcw, Trophy, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface PongGameProps {
   onClose: () => void;
 }
 
-const CANVAS_WIDTH = 400;
-const CANVAS_HEIGHT = 300;
-const PADDLE_HEIGHT = 60;
-const PADDLE_WIDTH = 10;
-const BALL_SIZE = 10;
-const PADDLE_SPEED = 8;
-const INITIAL_BALL_SPEED = 4;
-
 export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
   const { playClick, playHover } = useSoundEffects();
   const { language } = useSettings();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [playerScore, setPlayerScore] = useState(0);
   const [aiScore, setAiScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [canvasSize, setCanvasSize] = useState({ width: 300, height: 200 });
 
   const isSpanish = language === 'es';
 
+  // Responsive canvas size
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const maxWidth = Math.min(containerRef.current.clientWidth - 20, 400);
+        setCanvasSize({
+          width: maxWidth,
+          height: Math.floor(maxWidth * 0.75)
+        });
+      }
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
   // Game state refs
-  const playerY = useRef(CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2);
-  const aiY = useRef(CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2);
-  const ballX = useRef(CANVAS_WIDTH / 2);
-  const ballY = useRef(CANVAS_HEIGHT / 2);
-  const ballVX = useRef(INITIAL_BALL_SPEED);
-  const ballVY = useRef(INITIAL_BALL_SPEED * (Math.random() > 0.5 ? 1 : -1));
+  const paddleHeight = canvasSize.height * 0.2;
+  const paddleWidth = 8;
+  const ballSize = 8;
+  const paddleSpeed = canvasSize.height * 0.025;
+  const initialBallSpeed = canvasSize.width * 0.012;
+
+  const playerY = useRef(canvasSize.height / 2 - paddleHeight / 2);
+  const aiY = useRef(canvasSize.height / 2 - paddleHeight / 2);
+  const ballX = useRef(canvasSize.width / 2);
+  const ballY = useRef(canvasSize.height / 2);
+  const ballVX = useRef(initialBallSpeed);
+  const ballVY = useRef(initialBallSpeed * (Math.random() > 0.5 ? 1 : -1));
   const keysPressed = useRef<Set<string>>(new Set());
+  const touchDirection = useRef<'up' | 'down' | null>(null);
 
   // Load high score
   useEffect(() => {
@@ -43,11 +60,11 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
   }, []);
 
   const resetBall = useCallback(() => {
-    ballX.current = CANVAS_WIDTH / 2;
-    ballY.current = CANVAS_HEIGHT / 2;
-    ballVX.current = INITIAL_BALL_SPEED * (Math.random() > 0.5 ? 1 : -1);
-    ballVY.current = INITIAL_BALL_SPEED * (Math.random() > 0.5 ? 1 : -1);
-  }, []);
+    ballX.current = canvasSize.width / 2;
+    ballY.current = canvasSize.height / 2;
+    ballVX.current = initialBallSpeed * (Math.random() > 0.5 ? 1 : -1);
+    ballVY.current = initialBallSpeed * (Math.random() > 0.5 ? 1 : -1);
+  }, [canvasSize, initialBallSpeed]);
 
   const resetGame = useCallback(() => {
     playClick();
@@ -55,10 +72,10 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
     setAiScore(0);
     setIsGameOver(false);
     setIsPaused(false);
-    playerY.current = CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2;
-    aiY.current = CANVAS_HEIGHT / 2 - PADDLE_HEIGHT / 2;
+    playerY.current = canvasSize.height / 2 - paddleHeight / 2;
+    aiY.current = canvasSize.height / 2 - paddleHeight / 2;
     resetBall();
-  }, [playClick, resetBall]);
+  }, [playClick, resetBall, canvasSize.height, paddleHeight]);
 
   // Game loop
   useEffect(() => {
@@ -76,19 +93,19 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
       }
 
       // Move player paddle
-      if (keysPressed.current.has('ArrowUp') || keysPressed.current.has('w') || keysPressed.current.has('W')) {
-        playerY.current = Math.max(0, playerY.current - PADDLE_SPEED);
+      if (keysPressed.current.has('ArrowUp') || keysPressed.current.has('w') || keysPressed.current.has('W') || touchDirection.current === 'up') {
+        playerY.current = Math.max(0, playerY.current - paddleSpeed);
       }
-      if (keysPressed.current.has('ArrowDown') || keysPressed.current.has('s') || keysPressed.current.has('S')) {
-        playerY.current = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, playerY.current + PADDLE_SPEED);
+      if (keysPressed.current.has('ArrowDown') || keysPressed.current.has('s') || keysPressed.current.has('S') || touchDirection.current === 'down') {
+        playerY.current = Math.min(canvasSize.height - paddleHeight, playerY.current + paddleSpeed);
       }
 
       // AI movement
-      const aiCenter = aiY.current + PADDLE_HEIGHT / 2;
+      const aiCenter = aiY.current + paddleHeight / 2;
       if (ballY.current < aiCenter - 10) {
-        aiY.current = Math.max(0, aiY.current - PADDLE_SPEED * 0.6);
+        aiY.current = Math.max(0, aiY.current - paddleSpeed * 0.5);
       } else if (ballY.current > aiCenter + 10) {
-        aiY.current = Math.min(CANVAS_HEIGHT - PADDLE_HEIGHT, aiY.current + PADDLE_SPEED * 0.6);
+        aiY.current = Math.min(canvasSize.height - paddleHeight, aiY.current + paddleSpeed * 0.5);
       }
 
       // Move ball
@@ -96,31 +113,29 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
       ballY.current += ballVY.current;
 
       // Ball collision with top/bottom walls
-      if (ballY.current <= 0 || ballY.current >= CANVAS_HEIGHT - BALL_SIZE) {
+      if (ballY.current <= 0 || ballY.current >= canvasSize.height - ballSize) {
         ballVY.current *= -1;
       }
 
       // Ball collision with paddles
-      // Player paddle (left)
       if (
-        ballX.current <= PADDLE_WIDTH + 10 &&
-        ballY.current + BALL_SIZE >= playerY.current &&
-        ballY.current <= playerY.current + PADDLE_HEIGHT
+        ballX.current <= paddleWidth + 8 &&
+        ballY.current + ballSize >= playerY.current &&
+        ballY.current <= playerY.current + paddleHeight
       ) {
-        ballVX.current = Math.abs(ballVX.current) * 1.05;
-        const hitPos = (ballY.current - playerY.current) / PADDLE_HEIGHT;
-        ballVY.current = (hitPos - 0.5) * 8;
+        ballVX.current = Math.abs(ballVX.current) * 1.03;
+        const hitPos = (ballY.current - playerY.current) / paddleHeight;
+        ballVY.current = (hitPos - 0.5) * 6;
       }
 
-      // AI paddle (right)
       if (
-        ballX.current >= CANVAS_WIDTH - PADDLE_WIDTH - 10 - BALL_SIZE &&
-        ballY.current + BALL_SIZE >= aiY.current &&
-        ballY.current <= aiY.current + PADDLE_HEIGHT
+        ballX.current >= canvasSize.width - paddleWidth - 8 - ballSize &&
+        ballY.current + ballSize >= aiY.current &&
+        ballY.current <= aiY.current + paddleHeight
       ) {
-        ballVX.current = -Math.abs(ballVX.current) * 1.05;
-        const hitPos = (ballY.current - aiY.current) / PADDLE_HEIGHT;
-        ballVY.current = (hitPos - 0.5) * 8;
+        ballVX.current = -Math.abs(ballVX.current) * 1.03;
+        const hitPos = (ballY.current - aiY.current) / paddleHeight;
+        ballVY.current = (hitPos - 0.5) * 6;
       }
 
       // Scoring
@@ -132,7 +147,7 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
         });
         resetBall();
       }
-      if (ballX.current >= CANVAS_WIDTH) {
+      if (ballX.current >= canvasSize.width) {
         setPlayerScore(prev => {
           const newScore = prev + 1;
           if (newScore > highScore) {
@@ -147,33 +162,33 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
 
       // Draw
       ctx.fillStyle = '#0a0a0f';
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
 
       // Draw center line
-      ctx.setLineDash([5, 5]);
+      ctx.setLineDash([4, 4]);
       ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
       ctx.beginPath();
-      ctx.moveTo(CANVAS_WIDTH / 2, 0);
-      ctx.lineTo(CANVAS_WIDTH / 2, CANVAS_HEIGHT);
+      ctx.moveTo(canvasSize.width / 2, 0);
+      ctx.lineTo(canvasSize.width / 2, canvasSize.height);
       ctx.stroke();
       ctx.setLineDash([]);
 
       // Draw paddles
       ctx.fillStyle = '#00ffff';
       ctx.shadowColor = '#00ffff';
-      ctx.shadowBlur = 10;
-      ctx.fillRect(10, playerY.current, PADDLE_WIDTH, PADDLE_HEIGHT);
+      ctx.shadowBlur = 8;
+      ctx.fillRect(8, playerY.current, paddleWidth, paddleHeight);
       
       ctx.fillStyle = '#ff69b4';
       ctx.shadowColor = '#ff69b4';
-      ctx.fillRect(CANVAS_WIDTH - PADDLE_WIDTH - 10, aiY.current, PADDLE_WIDTH, PADDLE_HEIGHT);
+      ctx.fillRect(canvasSize.width - paddleWidth - 8, aiY.current, paddleWidth, paddleHeight);
 
       // Draw ball
       ctx.fillStyle = '#ffd700';
       ctx.shadowColor = '#ffd700';
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 12;
       ctx.beginPath();
-      ctx.arc(ballX.current + BALL_SIZE / 2, ballY.current + BALL_SIZE / 2, BALL_SIZE / 2, 0, Math.PI * 2);
+      ctx.arc(ballX.current + ballSize / 2, ballY.current + ballSize / 2, ballSize / 2, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
@@ -182,7 +197,7 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
 
     animationId = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationId);
-  }, [isPaused, isGameOver, highScore, resetBall]);
+  }, [isPaused, isGameOver, highScore, resetBall, canvasSize, paddleHeight, paddleSpeed]);
 
   // Keyboard input
   useEffect(() => {
@@ -210,77 +225,112 @@ export const PongGame: React.FC<PongGameProps> = ({ onClose }) => {
     };
   }, [onClose]);
 
+  // Touch handlers
+  const handleTouchStart = (direction: 'up' | 'down') => {
+    touchDirection.current = direction;
+  };
+  const handleTouchEnd = () => {
+    touchDirection.current = null;
+  };
+
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-night-deep/95 backdrop-blur-sm">
-      <div className="game-card p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-2 sm:p-4 bg-night-deep/95 backdrop-blur-sm">
+      <div ref={containerRef} className="game-card p-3 sm:p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-pixel text-lg text-neon-pink flex items-center gap-2">
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
+          <h2 className="font-pixel text-sm sm:text-lg text-neon-pink flex items-center gap-2">
             🏓 PONG
           </h2>
           <div className="flex items-center gap-2">
             <div className="game-card px-2 py-1 flex items-center gap-1">
-              <Trophy size={12} className="text-star-gold" />
-              <span className="font-pixel text-[10px] text-star-gold">{highScore}</span>
+              <Trophy size={10} className="text-star-gold" />
+              <span className="font-pixel text-[8px] sm:text-[10px] text-star-gold">{highScore}</span>
             </div>
             <button
               onClick={() => { playClick(); onClose(); }}
               onMouseEnter={playHover}
-              className="p-2 rounded-sm border-2 border-neon-pink hover:bg-neon-pink/20 transition-colors"
+              className="p-1.5 sm:p-2 rounded-sm border-2 border-neon-pink hover:bg-neon-pink/20 transition-colors"
             >
-              <X size={16} className="text-neon-pink" />
+              <X size={14} className="text-neon-pink sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
 
         {/* Score display */}
-        <div className="flex justify-center gap-8 mb-4">
+        <div className="flex justify-center gap-6 sm:gap-8 mb-2 sm:mb-4">
           <div className="text-center">
-            <span className="font-pixel text-[8px] text-neon-cyan">{isSpanish ? 'TÚ' : 'YOU'}</span>
-            <p className="font-pixel text-2xl text-neon-cyan">{playerScore}</p>
+            <span className="font-pixel text-[7px] sm:text-[8px] text-neon-cyan">{isSpanish ? 'TÚ' : 'YOU'}</span>
+            <p className="font-pixel text-xl sm:text-2xl text-neon-cyan">{playerScore}</p>
           </div>
-          <span className="font-pixel text-2xl text-muted-foreground">-</span>
+          <span className="font-pixel text-xl sm:text-2xl text-muted-foreground">-</span>
           <div className="text-center">
-            <span className="font-pixel text-[8px] text-neon-pink">CPU</span>
-            <p className="font-pixel text-2xl text-neon-pink">{aiScore}</p>
+            <span className="font-pixel text-[7px] sm:text-[8px] text-neon-pink">CPU</span>
+            <p className="font-pixel text-xl sm:text-2xl text-neon-pink">{aiScore}</p>
           </div>
         </div>
 
-        {/* Game canvas */}
-        <div className="relative">
-          <canvas
-            ref={canvasRef}
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            className="border-4 border-neon-cyan rounded-sm"
-          />
+        {/* Game canvas with touch controls */}
+        <div className="flex items-center justify-center gap-2">
+          {/* Left touch controls - Mobile */}
+          <div className="sm:hidden flex flex-col gap-2">
+            <button
+              onTouchStart={() => handleTouchStart('up')}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={() => handleTouchStart('up')}
+              onMouseUp={handleTouchEnd}
+              onMouseLeave={handleTouchEnd}
+              className="w-10 h-16 rounded-sm bg-muted border-2 border-neon-cyan/50 flex items-center justify-center active:bg-neon-cyan/30"
+            >
+              <ChevronUp size={20} className="text-neon-cyan" />
+            </button>
+            <button
+              onTouchStart={() => handleTouchStart('down')}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={() => handleTouchStart('down')}
+              onMouseUp={handleTouchEnd}
+              onMouseLeave={handleTouchEnd}
+              className="w-10 h-16 rounded-sm bg-muted border-2 border-neon-cyan/50 flex items-center justify-center active:bg-neon-cyan/30"
+            >
+              <ChevronDown size={20} className="text-neon-cyan" />
+            </button>
+          </div>
 
-          {/* Game Over / Paused Overlay */}
-          {(isGameOver || isPaused) && (
-            <div className="absolute inset-0 bg-night-deep/90 flex flex-col items-center justify-center rounded-sm">
-              <p className="font-pixel text-lg text-neon-pink mb-2">
-                {isGameOver 
-                  ? (playerScore >= 5 
-                    ? (isSpanish ? '¡GANASTE!' : 'YOU WIN!') 
-                    : (isSpanish ? '¡PERDISTE!' : 'YOU LOSE!'))
-                  : (isSpanish ? 'PAUSADO' : 'PAUSED')}
-              </p>
-              {isGameOver && (
-                <button
-                  onClick={resetGame}
-                  onMouseEnter={playHover}
-                  className="flex items-center gap-2 px-4 py-2 bg-neon-cyan text-night-deep font-pixel text-xs rounded-sm hover:shadow-neon transition-all"
-                >
-                  <RotateCcw size={14} />
-                  {isSpanish ? 'REINICIAR' : 'RESTART'}
-                </button>
-              )}
-            </div>
-          )}
+          {/* Canvas */}
+          <div className="relative">
+            <canvas
+              ref={canvasRef}
+              width={canvasSize.width}
+              height={canvasSize.height}
+              className="border-2 sm:border-4 border-neon-cyan rounded-sm"
+            />
+
+            {/* Game Over / Paused Overlay */}
+            {(isGameOver || isPaused) && (
+              <div className="absolute inset-0 bg-night-deep/90 flex flex-col items-center justify-center rounded-sm">
+                <p className="font-pixel text-sm sm:text-lg text-neon-pink mb-2">
+                  {isGameOver 
+                    ? (playerScore >= 5 
+                      ? (isSpanish ? '¡GANASTE!' : 'YOU WIN!') 
+                      : (isSpanish ? '¡PERDISTE!' : 'YOU LOSE!'))
+                    : (isSpanish ? 'PAUSADO' : 'PAUSED')}
+                </p>
+                {isGameOver && (
+                  <button
+                    onClick={resetGame}
+                    onMouseEnter={playHover}
+                    className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-neon-cyan text-night-deep font-pixel text-[10px] sm:text-xs rounded-sm hover:shadow-neon transition-all"
+                  >
+                    <RotateCcw size={12} />
+                    {isSpanish ? 'REINICIAR' : 'RESTART'}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Controls hint */}
-        <p className="text-center mt-4 font-retro text-xs text-muted-foreground">
+        <p className="hidden sm:block text-center mt-4 font-retro text-xs text-muted-foreground">
           {isSpanish 
             ? '↑↓ o WS para mover • ESPACIO para pausar • ESC para salir' 
             : '↑↓ or WS to move • SPACE to pause • ESC to exit'}

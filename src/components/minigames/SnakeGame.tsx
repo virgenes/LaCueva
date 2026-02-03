@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
-import { X, RotateCcw, Trophy } from 'lucide-react';
+import { X, RotateCcw, Trophy, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Position {
   x: number;
@@ -12,23 +12,35 @@ interface SnakeGameProps {
   onClose: () => void;
 }
 
-const GRID_SIZE = 15;
-const INITIAL_SPEED = 150;
+const GRID_SIZE = 12; // Reduced for mobile
+const INITIAL_SPEED = 180;
+const CELL_SIZE_MOBILE = 18;
+const CELL_SIZE_DESKTOP = 20;
 
 export const SnakeGame: React.FC<SnakeGameProps> = ({ onClose }) => {
   const { playClick, playHover } = useSoundEffects();
-  const { t, language } = useSettings();
-  const [snake, setSnake] = useState<Position[]>([{ x: 7, y: 7 }]);
-  const [food, setFood] = useState<Position>({ x: 5, y: 5 });
+  const { language } = useSettings();
+  const [snake, setSnake] = useState<Position[]>([{ x: 6, y: 6 }]);
+  const [food, setFood] = useState<Position>({ x: 4, y: 4 });
   const [direction, setDirection] = useState<'UP' | 'DOWN' | 'LEFT' | 'RIGHT'>('RIGHT');
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
   const directionRef = useRef(direction);
 
   const isSpanish = language === 'es';
+  const cellSize = isMobile ? CELL_SIZE_MOBILE : CELL_SIZE_DESKTOP;
+
+  // Detect mobile
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 640);
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Load high score
   useEffect(() => {
@@ -57,7 +69,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onClose }) => {
 
   const resetGame = useCallback(() => {
     playClick();
-    const initialSnake = [{ x: 7, y: 7 }];
+    const initialSnake = [{ x: 6, y: 6 }];
     setSnake(initialSnake);
     setFood(generateFood(initialSnake));
     setDirection('RIGHT');
@@ -109,7 +121,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onClose }) => {
 
   // Game loop
   useEffect(() => {
-    gameLoopRef.current = setInterval(moveSnake, INITIAL_SPEED - Math.min(score, 100));
+    gameLoopRef.current = setInterval(moveSnake, INITIAL_SPEED - Math.min(score, 80));
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current);
     };
@@ -153,53 +165,67 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onClose }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  // Touch controls
+  const handleDirection = (newDirection: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT') => {
+    const opposites: Record<string, string> = {
+      'UP': 'DOWN', 'DOWN': 'UP', 'LEFT': 'RIGHT', 'RIGHT': 'LEFT'
+    };
+    if (opposites[newDirection] !== directionRef.current) {
+      playClick();
+      directionRef.current = newDirection;
+      setDirection(newDirection);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-night-deep/95 backdrop-blur-sm">
-      <div className="game-card p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-2 sm:p-4 bg-night-deep/95 backdrop-blur-sm">
+      <div className="game-card p-3 sm:p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-pixel text-lg text-neon-cyan flex items-center gap-2">
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
+          <h2 className="font-pixel text-sm sm:text-lg text-neon-cyan flex items-center gap-2">
             🐍 SNAKE
           </h2>
           <button
             onClick={() => { playClick(); onClose(); }}
             onMouseEnter={playHover}
-            className="p-2 rounded-sm border-2 border-neon-pink hover:bg-neon-pink/20 transition-colors"
+            className="p-1.5 sm:p-2 rounded-sm border-2 border-neon-pink hover:bg-neon-pink/20 transition-colors"
           >
-            <X size={16} className="text-neon-pink" />
+            <X size={14} className="text-neon-pink sm:w-4 sm:h-4" />
           </button>
         </div>
 
         {/* Scores */}
-        <div className="flex justify-between mb-4 text-center">
-          <div className="game-card px-3 py-1">
-            <span className="font-pixel text-[8px] text-muted-foreground">SCORE</span>
-            <p className="font-pixel text-sm text-neon-cyan">{score}</p>
+        <div className="flex justify-between mb-2 sm:mb-4 text-center gap-2">
+          <div className="game-card px-2 sm:px-3 py-1 flex-1">
+            <span className="font-pixel text-[7px] sm:text-[8px] text-muted-foreground">SCORE</span>
+            <p className="font-pixel text-xs sm:text-sm text-neon-cyan">{score}</p>
           </div>
-          <div className="game-card px-3 py-1">
-            <span className="font-pixel text-[8px] text-muted-foreground flex items-center gap-1">
-              <Trophy size={10} /> BEST
+          <div className="game-card px-2 sm:px-3 py-1 flex-1">
+            <span className="font-pixel text-[7px] sm:text-[8px] text-muted-foreground flex items-center justify-center gap-1">
+              <Trophy size={8} /> BEST
             </span>
-            <p className="font-pixel text-sm text-star-gold">{highScore}</p>
+            <p className="font-pixel text-xs sm:text-sm text-star-gold">{highScore}</p>
           </div>
         </div>
 
         {/* Game Grid */}
         <div 
-          className="relative bg-night-deep border-4 border-neon-cyan rounded-sm mx-auto"
+          className="relative bg-night-deep border-2 sm:border-4 border-neon-cyan rounded-sm mx-auto"
           style={{ 
-            width: GRID_SIZE * 20 + 8,
-            height: GRID_SIZE * 20 + 8,
+            width: GRID_SIZE * cellSize + 4,
+            height: GRID_SIZE * cellSize + 4,
           }}
         >
           {/* Grid cells */}
           {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, i) => (
             <div
               key={i}
-              className="absolute w-5 h-5 border border-muted/20"
+              className="absolute border border-muted/10"
               style={{
-                left: (i % GRID_SIZE) * 20,
-                top: Math.floor(i / GRID_SIZE) * 20,
+                width: cellSize,
+                height: cellSize,
+                left: (i % GRID_SIZE) * cellSize,
+                top: Math.floor(i / GRID_SIZE) * cellSize,
               }}
             />
           ))}
@@ -208,40 +234,44 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onClose }) => {
           {snake.map((segment, index) => (
             <div
               key={index}
-              className={`absolute w-5 h-5 rounded-sm transition-all duration-75 ${
+              className={`absolute rounded-sm transition-all duration-75 ${
                 index === 0 
                   ? 'bg-neon-cyan shadow-neon' 
                   : 'bg-neon-cyan/70'
               }`}
               style={{
-                left: segment.x * 20,
-                top: segment.y * 20,
+                width: cellSize,
+                height: cellSize,
+                left: segment.x * cellSize,
+                top: segment.y * cellSize,
               }}
             />
           ))}
 
           {/* Food */}
           <div
-            className="absolute w-5 h-5 bg-neon-pink rounded-full animate-pulse shadow-neon-pink"
+            className="absolute bg-neon-pink rounded-full animate-pulse shadow-neon-pink"
             style={{
-              left: food.x * 20,
-              top: food.y * 20,
+              width: cellSize,
+              height: cellSize,
+              left: food.x * cellSize,
+              top: food.y * cellSize,
             }}
           />
 
           {/* Game Over / Paused Overlay */}
           {(isGameOver || isPaused) && (
             <div className="absolute inset-0 bg-night-deep/90 flex flex-col items-center justify-center">
-              <p className="font-pixel text-lg text-neon-pink mb-4">
+              <p className="font-pixel text-sm sm:text-lg text-neon-pink mb-3">
                 {isGameOver ? (isSpanish ? '¡GAME OVER!' : 'GAME OVER!') : (isSpanish ? 'PAUSADO' : 'PAUSED')}
               </p>
               {isGameOver && (
                 <button
                   onClick={resetGame}
                   onMouseEnter={playHover}
-                  className="flex items-center gap-2 px-4 py-2 bg-neon-cyan text-night-deep font-pixel text-xs rounded-sm hover:shadow-neon transition-all"
+                  className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-neon-cyan text-night-deep font-pixel text-[10px] sm:text-xs rounded-sm hover:shadow-neon transition-all"
                 >
-                  <RotateCcw size={14} />
+                  <RotateCcw size={12} />
                   {isSpanish ? 'REINICIAR' : 'RESTART'}
                 </button>
               )}
@@ -249,8 +279,38 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onClose }) => {
           )}
         </div>
 
-        {/* Controls hint */}
-        <p className="text-center mt-4 font-retro text-xs text-muted-foreground">
+        {/* Mobile Touch Controls */}
+        <div className="sm:hidden mt-4 flex flex-col items-center gap-1">
+          <button
+            onClick={() => handleDirection('UP')}
+            className="w-12 h-10 rounded-sm bg-muted border-2 border-neon-cyan/50 flex items-center justify-center active:bg-neon-cyan/30"
+          >
+            <ChevronUp size={24} className="text-neon-cyan" />
+          </button>
+          <div className="flex gap-8">
+            <button
+              onClick={() => handleDirection('LEFT')}
+              className="w-12 h-10 rounded-sm bg-muted border-2 border-neon-cyan/50 flex items-center justify-center active:bg-neon-cyan/30"
+            >
+              <ChevronLeft size={24} className="text-neon-cyan" />
+            </button>
+            <button
+              onClick={() => handleDirection('RIGHT')}
+              className="w-12 h-10 rounded-sm bg-muted border-2 border-neon-cyan/50 flex items-center justify-center active:bg-neon-cyan/30"
+            >
+              <ChevronRight size={24} className="text-neon-cyan" />
+            </button>
+          </div>
+          <button
+            onClick={() => handleDirection('DOWN')}
+            className="w-12 h-10 rounded-sm bg-muted border-2 border-neon-cyan/50 flex items-center justify-center active:bg-neon-cyan/30"
+          >
+            <ChevronDown size={24} className="text-neon-cyan" />
+          </button>
+        </div>
+
+        {/* Controls hint - Desktop only */}
+        <p className="hidden sm:block text-center mt-4 font-retro text-xs text-muted-foreground">
           {isSpanish 
             ? '↑↓←→ o WASD para mover • ESPACIO para pausar • ESC para salir' 
             : '↑↓←→ or WASD to move • SPACE to pause • ESC to exit'}
