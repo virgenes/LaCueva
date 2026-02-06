@@ -9,6 +9,7 @@ import { MemoryGame } from './MemoryGame';
 import { SimonGame } from './SimonGame';
 import { TicTacToe } from './TicTacToe';
 import { ReactionGame } from './ReactionGame';
+import { RPGGame } from './rpg/RPGGame';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface MiniGamesHubProps {
@@ -16,9 +17,10 @@ interface MiniGamesHubProps {
   onClose: () => void;
 }
 
-type GameType = 'snake' | 'pong' | 'clicker' | 'memory' | 'simon' | 'tictactoe' | 'reaction' | null;
+type GameType = 'snake' | 'pong' | 'clicker' | 'memory' | 'simon' | 'tictactoe' | 'reaction' | 'rpg' | null;
 
 const games = [
+  { id: 'rpg' as const, name: '🗡️ Ecos de Memoria', nameEn: '🗡️ Echoes of Memory', color: 'star-gold', desc: 'RPG experimental modificable', descEn: 'Moddable experimental RPG', featured: true },
   { id: 'snake' as const, name: '🐍 Snake', nameEn: '🐍 Snake', color: 'neon-cyan', desc: 'Clásico arcade', descEn: 'Classic arcade' },
   { id: 'pong' as const, name: '🏓 Pong', nameEn: '🏓 Pong', color: 'neon-pink', desc: 'VS CPU', descEn: 'VS CPU' },
   { id: 'memory' as const, name: '🧠 Memory', nameEn: '🧠 Memory', color: 'neon-purple', desc: 'Encuentra parejas', descEn: 'Find pairs' },
@@ -48,6 +50,7 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
   };
 
   // Render active game
+  if (activeGame === 'rpg') return <RPGGame onClose={handleCloseGame} />;
   if (activeGame === 'snake') return <SnakeGame onClose={handleCloseGame} />;
   if (activeGame === 'pong') return <PongGame onClose={handleCloseGame} />;
   if (activeGame === 'clicker') return <ClickerGame onClose={handleCloseGame} />;
@@ -55,7 +58,6 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
   if (activeGame === 'simon') return <SimonGame onClose={handleCloseGame} />;
   if (activeGame === 'tictactoe') return <TicTacToe onClose={handleCloseGame} />;
   if (activeGame === 'reaction') return <ReactionGame onClose={handleCloseGame} />;
-
   return (
     <div 
       className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-night-deep/95 backdrop-blur-sm"
@@ -88,14 +90,16 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
                 key={game.id}
                 onClick={() => handleSelectGame(game.id)}
                 onMouseEnter={playHover}
-                className={`flex flex-col sm:flex-row items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-sm border-2 border-${game.color}/50
+                className={`flex flex-col sm:flex-row items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-sm border-2 
+                  ${game.featured ? 'border-star-gold bg-star-gold/10 col-span-2 sm:col-span-1' : `border-${game.color}/50 bg-muted/30`}
                   hover:border-${game.color} hover:shadow-[0_0_15px_rgba(0,255,255,0.3)]
-                  hover:-translate-x-0 sm:hover:-translate-x-1 transition-all bg-muted/30 text-center sm:text-left`}
+                  hover:-translate-x-0 sm:hover:-translate-x-1 transition-all text-center sm:text-left`}
               >
                 <span className="text-2xl sm:text-3xl">{game.name.split(' ')[0]}</span>
                 <div className="flex-1">
-                  <h3 className="font-pixel text-[10px] sm:text-sm text-foreground">
-                    {game.name.split(' ').slice(1).join(' ')}
+                  <h3 className="font-pixel text-[10px] sm:text-sm text-foreground flex items-center gap-1 justify-center sm:justify-start">
+                    {isSpanish ? game.name.split(' ').slice(1).join(' ') : game.nameEn.split(' ').slice(1).join(' ')}
+                    {game.featured && <span className="text-[7px] text-star-gold">★ NEW</span>}
                   </h3>
                   <p className="font-retro text-[10px] sm:text-xs text-muted-foreground hidden sm:block">
                     {isSpanish ? game.desc : game.descEn}
