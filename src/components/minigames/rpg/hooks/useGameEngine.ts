@@ -11,7 +11,7 @@ const initialGameData: GameData = {
   version: '1.0.0',
   title: 'Echoes of Memory',
   titleEs: 'Ecos de la Memoria',
-  author: 'Cueva Virgen',
+  author: 'Maximo',
   sprites: defaultSprites,
   characters: defaultCharacters,
   dialogues: defaultDialogues,

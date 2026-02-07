@@ -1,4 +1,6 @@
 import { Dialogue, Character, GameItem } from '../types/GameTypes';
+import { prologueDialogues } from './prologueDialogues';
+import { protagonistCharacters } from './protagonistSprites';
 
 // Default dialogues - fully moddable
 export const defaultDialogues: Record<string, Dialogue> = {
@@ -181,9 +183,12 @@ export const defaultDialogues: Record<string, Dialogue> = {
       },
     ],
   },
+
+  // Import all prologue dialogues
+  ...prologueDialogues,
 };
 
-// Default characters
+// Default characters - includes protagonists
 export const defaultCharacters: Record<string, Character> = {
   player: {
     id: 'player',
@@ -221,7 +226,7 @@ export const defaultCharacters: Record<string, Character> = {
     id: 'narrator',
     name: 'Narrator',
     nameEs: 'Narrador',
-    spriteId: 'player', // Hidden, just for dialogue
+    spriteId: 'player',
     position: { x: 0, y: 0 },
     direction: 'down',
     isPlayer: false,
@@ -232,6 +237,9 @@ export const defaultCharacters: Record<string, Character> = {
       speed: 0,
     },
   },
+
+  // Include all protagonist characters
+  ...protagonistCharacters,
 };
 
 // Default items
@@ -255,5 +263,36 @@ export const defaultItems: Record<string, GameItem> = {
     spriteId: 'item_fragment',
     usable: true,
     useEffect: 'reveal_truth',
+  },
+
+  healing_potion: {
+    id: 'healing_potion',
+    name: 'Healing Potion',
+    nameEs: 'Poción Curativa',
+    description: 'Restores 50 HP to one ally.',
+    descriptionEs: 'Restaura 50 HP a un aliado.',
+    spriteId: 'item_potion',
+    usable: true,
+    useEffect: 'heal_50',
+  },
+
+  void_crystal: {
+    id: 'void_crystal',
+    name: 'Void Crystal',
+    nameEs: 'Cristal del Vacío',
+    description: 'A fragment from the dimension between worlds.',
+    descriptionEs: 'Un fragmento de la dimensión entre mundos.',
+    spriteId: 'item_crystal',
+    usable: false,
+  },
+
+  slime_essence: {
+    id: 'slime_essence',
+    name: 'Slime Essence',
+    nameEs: 'Esencia de Slime',
+    description: 'Sticky substance from a defeated slime.',
+    descriptionEs: 'Sustancia pegajosa de un slime derrotado.',
+    spriteId: 'item_slime',
+    usable: false,
   },
 };

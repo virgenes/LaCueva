@@ -28,11 +28,7 @@ const COLORS = {
 const C = COLORS;
 const T = COLORS.transparent;
 
-// Helper to create 32x32 grid
-const createGrid = (pattern: string[][]): string[][] => pattern;
-
-// Player sprite frames (32x32 pixels represented as 8x8 simplified)
-// Each "pixel" in our simplified version represents 4x4 actual pixels
+// Player sprite frames (8x8 simplified grid)
 export const playerSprite: Sprite = {
   id: 'player',
   name: 'Protagonist',
@@ -170,11 +166,36 @@ export const signTile: Tile = {
   ],
 };
 
+// Teleporter tile
+export const teleporterTile: Tile = {
+  id: 'teleporter',
+  solid: false,
+  interactable: true,
+  interactionType: 'teleport',
+  sprite: [
+    [T, T, C.pink, C.cyan, C.cyan, C.pink, T, T],
+    [T, C.pink, C.cyan, C.cyan, C.cyan, C.cyan, C.pink, T],
+    [C.pink, C.cyan, C.cyan, C.pink, C.pink, C.cyan, C.cyan, C.pink],
+    [C.cyan, C.cyan, C.pink, C.cyan, C.cyan, C.pink, C.cyan, C.cyan],
+    [C.cyan, C.cyan, C.pink, C.cyan, C.cyan, C.pink, C.cyan, C.cyan],
+    [C.pink, C.cyan, C.cyan, C.pink, C.pink, C.cyan, C.cyan, C.pink],
+    [T, C.pink, C.cyan, C.cyan, C.cyan, C.cyan, C.pink, T],
+    [T, T, C.pink, C.cyan, C.cyan, C.pink, T, T],
+  ],
+};
+
+// Import protagonist sprites
+import { protagonistSprites } from './protagonistSprites';
+
 // All default sprites bundled
 export const defaultSprites = {
   player: playerSprite,
   npc_mysterious: npcMysteriousSprite,
+  ...protagonistSprites,
 };
+
+// Import additional tiles from maps
+import { additionalTiles } from './mapsData';
 
 export const defaultTiles = {
   grass: grassTile,
@@ -182,4 +203,6 @@ export const defaultTiles = {
   water: waterTile,
   wood_floor: woodFloorTile,
   sign: signTile,
+  teleporter: teleporterTile,
+  ...additionalTiles,
 };
