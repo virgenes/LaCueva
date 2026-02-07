@@ -12,7 +12,6 @@ import { CombatSystem } from './components/CombatSystem';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { teleporterConnections } from './data/defaultMap';
 
 interface RPGGameProps {
   onClose: () => void;
@@ -58,19 +57,6 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     const saved = localStorage.getItem('rpg_game_state');
     setHasSaveData(!!saved);
   }, []);
-
-  // Handle teleporters
-  useEffect(() => {
-    if (gameMode !== 'playing') return;
-    
-    const key = `${gameState.currentMapId}_${gameState.playerPosition.x}_${gameState.playerPosition.y}`;
-    const connection = teleporterConnections[key];
-    
-    if (connection) {
-      // Teleport to new map - would need to update game engine for this
-      console.log('Teleporting to:', connection);
-    }
-  }, [gameState.playerPosition, gameState.currentMapId, gameMode]);
 
   // Toggle fullscreen
   const toggleFullscreen = () => {

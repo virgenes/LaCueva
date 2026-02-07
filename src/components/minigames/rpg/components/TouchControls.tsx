@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Maximize, Menu } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -20,8 +20,20 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
   opacity = 0.8,
 }) => {
   const [activeDirection, setActiveDirection] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
-  const handleTouch = (direction: 'up' | 'down' | 'left' | 'right') => {
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleTouchStart = (direction: 'up' | 'down' | 'left' | 'right') => {
     if (!disabled) {
       setActiveDirection(direction);
       onMove(direction);
@@ -32,101 +44,136 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
     setActiveDirection(null);
   };
 
+  const handleInteract = () => {
+    if (!disabled) {
+      onInteract();
+    }
+  };
+
   const buttonClass = (direction: string) => `
-    w-12 h-12 flex items-center justify-center rounded-lg
+    w-14 h-14 flex items-center justify-center rounded-full
     border-2 transition-all duration-75
     ${activeDirection === direction 
-      ? 'bg-neon-cyan/50 border-neon-cyan scale-95 shadow-lg shadow-neon-cyan/30' 
-      : 'bg-card/80 border-border hover:border-muted-foreground'}
+      ? 'bg-neon-cyan/70 border-neon-cyan scale-95 shadow-lg shadow-neon-cyan/50' 
+      : 'bg-card/90 border-border/70 hover:border-neon-cyan/50'}
     active:scale-90 backdrop-blur-sm
+    touch-manipulation select-none
   `;
+
+  // For mobile, show larger controls
+  const controlSize = isMobile ? 'w-16 h-16' : 'w-14 h-14';
+  const iconSize = isMobile ? 28 : 24;
 
   return (
     <div 
-      className="absolute bottom-2 left-0 right-0 flex justify-between items-end px-3 pointer-events-none"
+      className="fixed bottom-4 left-0 right-0 flex justify-between items-end px-4 pointer-events-none z-40"
       style={{ opacity }}
     >
-      {/* D-Pad with improved layout */}
+      {/* D-Pad Container */}
       <div className="relative pointer-events-auto">
-        {/* Up button */}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onTouchStart={() => handleTouch('up')}
-          onTouchEnd={handleTouchEnd}
-          onClick={() => handleTouch('up')}
-          className={`${buttonClass('up')} absolute -top-12 left-1/2 -translate-x-1/2`}
-          disabled={disabled}
-        >
-          <ChevronUp size={24} className="text-foreground" />
-        </motion.button>
-
-        {/* Middle row: Left, Center, Right */}
-        <div className="flex items-center gap-1">
+        {/* D-Pad Grid */}
+        <div className="grid grid-cols-3 grid-rows-3 gap-1">
+          {/* Empty top-left */}
+          <div className="w-14 h-14" />
+          
+          {/* Up button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
-            onTouchStart={() => handleTouch('left')}
+            onTouchStart={() => handleTouchStart('up')}
             onTouchEnd={handleTouchEnd}
-            onClick={() => handleTouch('left')}
-            className={buttonClass('left')}
+            onMouseDown={() => handleTouchStart('up')}
+            onMouseUp={handleTouchEnd}
+            onMouseLeave={handleTouchEnd}
+            className={`${buttonClass('up')} ${controlSize} col-start-2 row-start-1`}
             disabled={disabled}
           >
-            <ChevronLeft size={24} className="text-foreground" />
+            <ChevronUp size={iconSize} className="text-foreground" />
+          </motion.button>
+          
+          {/* Empty top-right */}
+          <div className="w-14 h-14" />
+
+          {/* Left button */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onTouchStart={() => handleTouchStart('left')}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={() => handleTouchStart('left')}
+            onMouseUp={handleTouchEnd}
+            onMouseLeave={handleTouchEnd}
+            className={`${buttonClass('left')} ${controlSize} col-start-1 row-start-2`}
+            disabled={disabled}
+          >
+            <ChevronLeft size={iconSize} className="text-foreground" />
           </motion.button>
           
           {/* Center indicator */}
-          <div className="w-10 h-10 rounded-lg bg-muted/50 flex items-center justify-center">
+          <div className={`${controlSize} flex items-center justify-center bg-muted/40 rounded-full border border-border/50`}>
             <div className="w-3 h-3 rounded-full bg-muted-foreground/30" />
           </div>
           
+          {/* Right button */}
           <motion.button
             whileTap={{ scale: 0.9 }}
-            onTouchStart={() => handleTouch('right')}
+            onTouchStart={() => handleTouchStart('right')}
             onTouchEnd={handleTouchEnd}
-            onClick={() => handleTouch('right')}
-            className={buttonClass('right')}
+            onMouseDown={() => handleTouchStart('right')}
+            onMouseUp={handleTouchEnd}
+            onMouseLeave={handleTouchEnd}
+            className={`${buttonClass('right')} ${controlSize} col-start-3 row-start-2`}
             disabled={disabled}
           >
-            <ChevronRight size={24} className="text-foreground" />
+            <ChevronRight size={iconSize} className="text-foreground" />
           </motion.button>
-        </div>
 
-        {/* Down button */}
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onTouchStart={() => handleTouch('down')}
-          onTouchEnd={handleTouchEnd}
-          onClick={() => handleTouch('down')}
-          className={`${buttonClass('down')} absolute -bottom-12 left-1/2 -translate-x-1/2`}
-          disabled={disabled}
-        >
-          <ChevronDown size={24} className="text-foreground" />
-        </motion.button>
+          {/* Empty bottom-left */}
+          <div className="w-14 h-14" />
+          
+          {/* Down button */}
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onTouchStart={() => handleTouchStart('down')}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={() => handleTouchStart('down')}
+            onMouseUp={handleTouchEnd}
+            onMouseLeave={handleTouchEnd}
+            className={`${buttonClass('down')} ${controlSize} col-start-2 row-start-3`}
+            disabled={disabled}
+          >
+            <ChevronDown size={iconSize} className="text-foreground" />
+          </motion.button>
+          
+          {/* Empty bottom-right */}
+          <div className="w-14 h-14" />
+        </div>
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-col items-end gap-2 pointer-events-auto">
+      <div className="flex flex-col items-end gap-3 pointer-events-auto">
         {/* Secondary buttons row */}
         <div className="flex gap-2">
           {onMenu && (
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={onMenu}
-              className="w-10 h-10 flex items-center justify-center rounded-lg
-                bg-card/80 border-2 border-star-gold/50 backdrop-blur-sm
-                active:bg-star-gold/30 transition-colors"
+              onTouchStart={onMenu}
+              className={`${controlSize} flex items-center justify-center rounded-full
+                bg-card/90 border-2 border-star-gold/50 backdrop-blur-sm
+                active:bg-star-gold/30 transition-colors`}
             >
-              <Menu size={18} className="text-star-gold" />
+              <Menu size={iconSize * 0.6} className="text-star-gold" />
             </motion.button>
           )}
           {onFullscreen && (
             <motion.button
               whileTap={{ scale: 0.9 }}
               onClick={onFullscreen}
-              className="w-10 h-10 flex items-center justify-center rounded-lg
-                bg-card/80 border-2 border-muted-foreground/50 backdrop-blur-sm
-                active:bg-muted/50 transition-colors"
+              onTouchStart={onFullscreen}
+              className={`${controlSize} flex items-center justify-center rounded-full
+                bg-card/90 border-2 border-muted-foreground/50 backdrop-blur-sm
+                active:bg-muted/50 transition-colors`}
             >
-              <Maximize size={18} className="text-muted-foreground" />
+              <Maximize size={iconSize * 0.6} className="text-muted-foreground" />
             </motion.button>
           )}
         </div>
@@ -134,15 +181,15 @@ export const TouchControls: React.FC<TouchControlsProps> = ({
         {/* Main action button */}
         <motion.button
           whileTap={{ scale: 0.9 }}
-          onTouchStart={onInteract}
-          onClick={onInteract}
+          onTouchStart={handleInteract}
+          onClick={handleInteract}
           disabled={disabled}
-          className="w-16 h-16 flex items-center justify-center rounded-full
+          className={`${controlSize} flex items-center justify-center rounded-full
             bg-gradient-to-br from-neon-cyan to-neon-cyan/70 
             border-4 border-neon-cyan shadow-lg shadow-neon-cyan/30
             active:shadow-neon-cyan/50 active:scale-95 
-            transition-all font-pixel text-sm text-night-deep
-            backdrop-blur-sm"
+            transition-all font-pixel text-lg text-night-deep font-bold
+            backdrop-blur-sm select-none`}
         >
           A
         </motion.button>

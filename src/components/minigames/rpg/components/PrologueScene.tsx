@@ -10,7 +10,6 @@ import {
   eliasSprite, 
   maximoSprite 
 } from '../data/protagonistSprites';
-import { prologueDialogues } from '../data/prologueDialogues';
 
 interface PrologueSceneProps {
   onComplete: () => void;
@@ -62,7 +61,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
     narrator: isSpanish ? 'Narrador' : 'Narrator',
   };
 
-  // Prologue dialogue sequence
+  // Prologue dialogue sequence - MOVIDO FUERA DEL COMPONENTE PARA EVITAR RE-RENDERS
   const dialogueSequence: DialogueLine[] = [
     { speaker: 'narrator', text: '[ A regular day at school... ]', textEs: '[ Un día normal en la escuela... ]' },
     { speaker: 'miguel', text: "Did you guys see the meteor shower last night? It was INSANE!", textEs: "¿Vieron la lluvia de meteoros anoche? ¡Estuvo INCREÍBLE!", emotion: 'happy' },
@@ -106,7 +105,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
     }
   }, [phase]);
 
-  // Typing effect
+  // Typing effect - CORREGIDO
   useEffect(() => {
     const dialogue = getCurrentDialogue();
     if (dialogue.length === 0 || dialogueIndex >= dialogue.length) return;
@@ -114,29 +113,32 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
     const currentLine = dialogue[dialogueIndex];
     const fullText = isSpanish ? currentLine.textEs : currentLine.text;
     
-    if (!isTyping) {
+    // Reset displayed text when line changes
+    if (!isTyping && displayedText.length < fullText.length) {
       setIsTyping(true);
-      setDisplayedText('');
     }
 
-    if (displayedText.length < fullText.length) {
+    if (isTyping && displayedText.length < fullText.length) {
       const timer = setTimeout(() => {
-        setDisplayedText(fullText.substring(0, displayedText.length + 1));
+        setDisplayedText(prev => prev + fullText[prev.length]);
       }, 30);
       return () => clearTimeout(timer);
-    } else {
+    } else if (isTyping && displayedText.length >= fullText.length) {
       setIsTyping(false);
     }
   }, [dialogueIndex, displayedText, isTyping, phase, isSpanish, getCurrentDialogue]);
 
-  // Advance dialogue
+  // Advance dialogue - CORREGIDO (simplificado)
   const advanceDialogue = useCallback(() => {
     const dialogue = getCurrentDialogue();
+    
+    if (dialogue.length === 0) return;
     
     if (isTyping) {
       // Complete current text immediately
       const currentLine = dialogue[dialogueIndex];
-      setDisplayedText(isSpanish ? currentLine.textEs : currentLine.text);
+      const fullText = isSpanish ? currentLine.textEs : currentLine.text;
+      setDisplayedText(fullText);
       setIsTyping(false);
       return;
     }
@@ -149,6 +151,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
       // Move to next phase
       setDialogueIndex(0);
       setDisplayedText('');
+      setIsTyping(true);
       
       switch (phase) {
         case 'classroom_normal':
@@ -169,6 +172,8 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
         case 'new_world':
           setPhase('complete');
           onComplete();
+          break;
+        default:
           break;
       }
     }
@@ -192,10 +197,24 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
       const timer = setTimeout(() => {
         setPhase('dialogue');
         setIsTyping(true);
+        setDisplayedText('');
       }, 2000);
       return () => clearTimeout(timer);
     }
   }, [phase]);
+
+  // Handle keyboard and click events
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === ' ' || e.key === 'Enter' || e.key === 'Spacebar') {
+        e.preventDefault();
+        advanceDialogue();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [advanceDialogue]);
 
   const currentDialogue = getCurrentDialogue();
   const currentLine = currentDialogue[dialogueIndex];
@@ -206,6 +225,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
       onClick={advanceDialogue}
       style={{
         transform: `translate(${shakeIntensity}px, ${shakeIntensity * 0.5}px)`,
+        transition: phase === 'earthquake' ? 'none' : 'transform 0.1s',
       }}
     >
       {/* Skip button */}
@@ -215,7 +235,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
           onSkip();
         }}
         className="absolute top-2 right-2 z-50 px-2 py-1 font-pixel text-[8px] 
-          text-muted-foreground hover:text-foreground transition-colors"
+          text-muted-foreground hover:text-foreground transition-colors bg-card/50 rounded-sm"
       >
         {isSpanish ? 'SALTAR ▶▶' : 'SKIP ▶▶'}
       </button>
@@ -261,7 +281,11 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
                   }}
                   transition={{ 
                     delay: index * 0.2,
-                    y: { duration: 0.1, repeat: phase === 'earthquake' ? Infinity : 0 },
+                    y: { 
+                      duration: 0.1, 
+                      repeat: phase === 'earthquake' ? Infinity : 0,
+                      repeatType: 'loop' 
+                    },
                   }}
                   className="relative"
                 >
@@ -423,7 +447,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="absolute bottom-4 left-4 right-4 bg-night-deep/95 border-2 
-            border-neon-cyan p-3 rounded-sm"
+            border-neon-cyan p-3 rounded-sm z-50"
         >
           <div className="font-pixel text-[9px] text-neon-pink mb-1">
             {characterNames[currentLine.speaker] || currentLine.speaker}

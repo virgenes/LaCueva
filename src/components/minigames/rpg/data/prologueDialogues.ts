@@ -8,8 +8,8 @@ export const prologueDialogues: Record<string, Dialogue> = {
     speakerId: 'narrator',
     lines: [
       {
-        text: '[ A regular day at school... ]',
-        textEs: '[ Un día normal en la escuela... ]',
+        text: 'A regular day at school...',
+        textEs: 'Un día normal en la escuela... ]',
         emotion: 'neutral',
       },
       {
