@@ -81,6 +81,10 @@ export interface GameMap {
   spawnPoint: Position;
   music?: string;
   ambience?: string;
+  ambientTrack?: string;
+  encounterRate?: number; // Chance of random encounter per step (0-1)
+  possibleEncounters?: string[]; // Monster IDs that can appear
+  events?: string[];
 }
 
 export interface GameState {

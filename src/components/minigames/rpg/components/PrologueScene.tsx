@@ -61,7 +61,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
     narrator: isSpanish ? 'Narrador' : 'Narrator',
   };
 
-  // Prologue dialogue sequence - MOVIDO FUERA DEL COMPONENTE PARA EVITAR RE-RENDERS
+  // Prologue dialogue sequence
   const dialogueSequence: DialogueLine[] = [
     { speaker: 'narrator', text: '[ A regular day at school... ]', textEs: '[ Un día normal en la escuela... ]' },
     { speaker: 'miguel', text: "Did you guys see the meteor shower last night? It was INSANE!", textEs: "¿Vieron la lluvia de meteoros anoche? ¡Estuvo INCREÍBLE!", emotion: 'happy' },
@@ -105,7 +105,7 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
     }
   }, [phase]);
 
-  // Typing effect - CORREGIDO
+  // Typing effect
   useEffect(() => {
     const dialogue = getCurrentDialogue();
     if (dialogue.length === 0 || dialogueIndex >= dialogue.length) return;
@@ -113,7 +113,6 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
     const currentLine = dialogue[dialogueIndex];
     const fullText = isSpanish ? currentLine.textEs : currentLine.text;
     
-    // Reset displayed text when line changes
     if (!isTyping && displayedText.length < fullText.length) {
       setIsTyping(true);
     }
@@ -128,14 +127,13 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
     }
   }, [dialogueIndex, displayedText, isTyping, phase, isSpanish, getCurrentDialogue]);
 
-  // Advance dialogue - CORREGIDO (simplificado)
+  // Advance dialogue
   const advanceDialogue = useCallback(() => {
     const dialogue = getCurrentDialogue();
     
     if (dialogue.length === 0) return;
     
     if (isTyping) {
-      // Complete current text immediately
       const currentLine = dialogue[dialogueIndex];
       const fullText = isSpanish ? currentLine.textEs : currentLine.text;
       setDisplayedText(fullText);
@@ -148,7 +146,6 @@ export const PrologueScene: React.FC<PrologueSceneProps> = ({ onComplete, onSkip
       setDisplayedText('');
       setIsTyping(true);
     } else {
-      // Move to next phase
       setDialogueIndex(0);
       setDisplayedText('');
       setIsTyping(true);

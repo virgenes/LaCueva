@@ -1,24 +1,36 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { SpriteRenderer } from './SpriteRenderer';
-import { GameData, GameState, GameMap, Character } from '../types/GameTypes';
+import { GameData, GameState, GameMap, Position } from '../types/GameTypes';
+import { imageTiles, isImageTile, isObjectTile, getGroundTileFor } from '../data/imageTiles';
 
 interface GameCanvasProps {
   gameData: GameData;
   gameState: GameState;
   currentMap: GameMap;
   pixelSize?: number;
+  mapMonsters?: MapMonster[];
+  onMonsterEncounter?: (monster: MapMonster) => void;
+}
+
+export interface MapMonster {
+  id: string;
+  monsterId: string;
+  position: Position;
+  sprite: string[][];
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
   gameData,
   gameState,
   currentMap,
-  pixelSize = 4,
+  pixelSize = 5, // Increased for bigger display
+  mapMonsters = [],
+  onMonsterEncounter,
 }) => {
   const tileSize = 8 * pixelSize; // 8x8 grid * pixel size
 
-  // Calculate viewport (center on player)
-  const viewportTiles = { width: 9, height: 7 };
+  // LARGER viewport for better view
+  const viewportTiles = { width: 13, height: 9 };
   
   const cameraOffset = useMemo(() => {
     const centerX = Math.floor(viewportTiles.width / 2);
@@ -34,6 +46,92 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     return { x: offsetX, y: offsetY };
   }, [gameState.playerPosition, currentMap, viewportTiles]);
 
+  // Render tile (handles both ground and object layers)
+  const renderTile = (tileId: string, x: number, y: number, key: string) => {
+    const elements: JSX.Element[] = [];
+    
+    // Check if it's an image tile
+    if (isImageTile(tileId)) {
+      const imageTile = imageTiles[tileId];
+      if (!imageTile) return null;
+      
+      // If it's an object tile, first render the ground underneath
+      if (isObjectTile(tileId)) {
+        const groundTileId = getGroundTileFor(tileId);
+        if (groundTileId && imageTiles[groundTileId]) {
+          elements.push(
+            <img
+              key={`${key}-ground`}
+              src={imageTiles[groundTileId].src}
+              alt={groundTileId}
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                width: tileSize,
+                height: tileSize,
+                imageRendering: 'pixelated',
+                objectFit: 'cover',
+              }}
+              draggable={false}
+            />
+          );
+        }
+        
+        // Render the object on top with potential offset
+        elements.push(
+          <img
+            key={`${key}-object`}
+            src={imageTile.src}
+            alt={tileId}
+            className="absolute pointer-events-none"
+            style={{
+              width: tileSize,
+              height: tileSize,
+              imageRendering: 'pixelated',
+              objectFit: 'contain',
+              zIndex: 5 + y, // Objects have depth based on Y
+              top: imageTile.offsetY || 0,
+              left: 0,
+            }}
+            draggable={false}
+          />
+        );
+      } else {
+        // Ground tile - render normally
+        elements.push(
+          <img
+            key={`${key}-tile`}
+            src={imageTile.src}
+            alt={tileId}
+            className="pointer-events-none"
+            style={{
+              width: tileSize,
+              height: tileSize,
+              imageRendering: 'pixelated',
+              objectFit: 'cover',
+            }}
+            draggable={false}
+          />
+        );
+      }
+      
+      return elements;
+    }
+    
+    // Fall back to array-based tile
+    const tile = gameData.tiles[tileId];
+    if (tile) {
+      return (
+        <SpriteRenderer 
+          key={`${key}-sprite`}
+          sprite={tile.sprite} 
+          size={pixelSize} 
+        />
+      );
+    }
+    
+    return null;
+  };
+
   // Render visible tiles
   const visibleTiles = useMemo(() => {
     const tiles: JSX.Element[] = [];
@@ -43,9 +141,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     for (let y = cameraOffset.y; y < cameraOffset.y + viewportTiles.height && y < currentMap.height; y++) {
       for (let x = cameraOffset.x; x < cameraOffset.x + viewportTiles.width && x < currentMap.width; x++) {
         const tileId = groundLayer.tiles[y]?.[x];
-        const tile = tileId ? gameData.tiles[tileId] : null;
         
-        if (tile) {
+        if (tileId) {
           tiles.push(
             <div
               key={`tile-${x}-${y}`}
@@ -57,7 +154,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 height: tileSize,
               }}
             >
-              <SpriteRenderer sprite={tile.sprite} size={pixelSize} />
+              {renderTile(tileId, x, y, `tile-${x}-${y}`)}
             </div>
           );
         }
@@ -65,6 +162,36 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     }
     return tiles;
   }, [currentMap, cameraOffset, gameData.tiles, tileSize, pixelSize, viewportTiles]);
+
+  // Render monsters on map
+  const renderedMonsters = useMemo(() => {
+    return mapMonsters.map(monster => {
+      const screenX = monster.position.x - cameraOffset.x;
+      const screenY = monster.position.y - cameraOffset.y;
+      
+      // Check if in viewport
+      if (screenX < 0 || screenX >= viewportTiles.width || screenY < 0 || screenY >= viewportTiles.height) {
+        return null;
+      }
+
+      return (
+        <div
+          key={`monster-${monster.id}`}
+          className="absolute transition-all duration-200 cursor-pointer hover:scale-110"
+          style={{
+            left: screenX * tileSize,
+            top: screenY * tileSize,
+            width: tileSize,
+            height: tileSize,
+            zIndex: 15 + monster.position.y,
+          }}
+          onClick={() => onMonsterEncounter?.(monster)}
+        >
+          <SpriteRenderer sprite={monster.sprite} size={pixelSize} />
+        </div>
+      );
+    }).filter(Boolean);
+  }, [mapMonsters, cameraOffset, tileSize, pixelSize, viewportTiles, onMonsterEncounter]);
 
   // Render NPCs
   const renderedNpcs = useMemo(() => {
@@ -75,7 +202,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const sprite = gameData.sprites[npc.spriteId];
       if (!sprite || !sprite.frames[0]) return null;
 
-      // Check if in viewport
       const screenX = npc.position.x - cameraOffset.x;
       const screenY = npc.position.y - cameraOffset.y;
       
@@ -111,7 +237,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   return (
     <div 
-      className="relative overflow-hidden bg-night-deep"
+      className="relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-800 rounded-lg shadow-2xl border-4 border-slate-700"
       style={{
         width: viewportTiles.width * tileSize,
         height: viewportTiles.height * tileSize,
@@ -120,6 +246,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     >
       {/* Tiles layer */}
       {visibleTiles}
+      
+      {/* Monsters layer */}
+      {renderedMonsters}
       
       {/* NPCs layer */}
       {renderedNpcs}
@@ -141,11 +270,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         </div>
       )}
       
-      {/* Scanlines overlay */}
+      {/* Ambient lighting overlay */}
       <div 
-        className="absolute inset-0 pointer-events-none opacity-10"
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
+          background: 'radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,0,0,0.3) 100%)',
+        }}
+      />
+      
+      {/* Subtle scanlines */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-5"
+        style={{
+          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)',
         }}
       />
     </div>

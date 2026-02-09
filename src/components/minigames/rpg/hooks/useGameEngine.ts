@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, GameData, Position, Dialogue, Character, Tile } from '../types/GameTypes';
 import { defaultSprites, defaultTiles } from '../data/defaultSprites';
 import { defaultDialogues, defaultCharacters, defaultItems } from '../data/defaultDialogues';
-import { defaultMaps, teleporterConnections } from '../data/defaultMap'; // ¡IMPORTANTE: Agrega teleporterConnections aquí!
+import { defaultMaps, teleporterConnections } from '../data/defaultMap';
+import { imageTiles, isImageTile, ImageTile } from '../data/imageTiles';
 
 const STORAGE_KEY = 'rpg_game_state';
 const MODS_KEY = 'rpg_game_mods';
@@ -89,15 +90,23 @@ export const useGameEngine = () => {
   // Get current map
   const currentMap = gameData.maps[gameState.currentMapId];
   
-  // Get tile at position
-  const getTileAt = useCallback((x: number, y: number): Tile | null => {
+  // Get tile at position - supports both array tiles and image tiles
+  const getTileAt = useCallback((x: number, y: number): Tile | ImageTile | null => {
     if (!currentMap) return null;
     const groundLayer = currentMap.layers.find(l => l.name === 'ground');
     if (!groundLayer || y < 0 || y >= groundLayer.tiles.length || x < 0 || x >= groundLayer.tiles[0].length) {
       return null;
     }
     const tileId = groundLayer.tiles[y][x];
-    return tileId ? gameData.tiles[tileId] : null;
+    if (!tileId) return null;
+    
+    // Check if it's an image tile first
+    if (isImageTile(tileId)) {
+      return imageTiles[tileId] || null;
+    }
+    
+    // Fall back to array-based tile
+    return gameData.tiles[tileId] || null;
   }, [currentMap, gameData.tiles]);
 
   // Check NPC at position
@@ -124,7 +133,7 @@ export const useGameEngine = () => {
     return true;
   }, [getTileAt, getNpcAt]);
 
-  // Mover jugador - CON TELETRANSPORTE AUTOMÁTICO
+  // Move player with auto-teleport
   const movePlayer = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
     if (activeDialogue || isPaused) return;
 
@@ -143,16 +152,14 @@ export const useGameEngine = () => {
       }
 
       if (canMoveTo(newPos.x, newPos.y)) {
-        // Verificar si la nueva posición es un teleporter
+        // Check for teleporter
         const tile = getTileAt(newPos.x, newPos.y);
         
         if (tile && tile.interactable && tile.interactionType === 'teleport') {
-          // Buscar conexión de teletransporte
           const connectionKey = `${prev.currentMapId}_${newPos.x}_${newPos.y}`;
           const connection = teleporterConnections[connectionKey];
           
           if (connection) {
-            // Teletransportar al jugador
             return {
               ...prev,
               currentMapId: connection.mapId,
@@ -173,10 +180,9 @@ export const useGameEngine = () => {
     });
   }, [activeDialogue, isPaused, canMoveTo, getTileAt]);
 
-  // Interact with what's in front of player - MANEJA TELETRANSPORTE
+  // Interact with what's in front of player
   const interact = useCallback(() => {
     if (activeDialogue) {
-      // Advance dialogue
       if (isTyping) {
         setIsTyping(false);
         const currentLine = activeDialogue.lines[dialogueIndex];
@@ -188,7 +194,6 @@ export const useGameEngine = () => {
       } else if (activeDialogue.choices && activeDialogue.choices.length > 0) {
         // Show choices - handled in UI
       } else {
-        // End dialogue
         if (activeDialogue.setFlag) {
           setGameState(prev => ({
             ...prev,
@@ -247,7 +252,6 @@ export const useGameEngine = () => {
           setDisplayedText('');
         }
       } else if (tile.interactionType === 'teleport') {
-        // ¡MANEJAR TELETRANSPORTE DESDE INTERACCIÓN!
         const connectionKey = `${gameState.currentMapId}_${facingPos.x}_${facingPos.y}`;
         const connection = teleporterConnections[connectionKey];
         

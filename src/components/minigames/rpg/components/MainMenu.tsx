@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, BookOpen, Settings, Maximize, Volume2, VolumeX, Info } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { SpriteRenderer } from './SpriteRenderer';
 import { matiasSprite, angelSprite, alejandroSprite, miguelSprite, eliasSprite, maximoSprite } from '../data/protagonistSprites';
-import { useFullscreen } from '@/hooks/useFullscreen';
 
 interface MainMenuProps {
   onStartStory: () => void;
@@ -25,10 +24,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const isSpanish = language === 'es';
   const [showCredits, setShowCredits] = useState(false);
   const [currentSpriteIndex, setCurrentSpriteIndex] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  
-  const gameContainerRef = useRef<HTMLDivElement>(null);
-  const { isFullscreen, toggleFullscreen } = useFullscreen(gameContainerRef);
 
   const sprites = [
     matiasSprite.frames[0],
@@ -49,24 +46,28 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     return () => clearInterval(interval);
   }, [sprites.length]);
 
-  // Handle fullscreen toggle with better error handling
-  const handleFullscreenToggle = async () => {
-    try {
-      await toggleFullscreen();
-    } catch (error) {
-      console.error('Fullscreen error:', error);
-      // Fallback: Toggle a CSS class for fullscreen simulation
-      if (gameContainerRef.current) {
-        gameContainerRef.current.classList.toggle('fullscreen-simulated');
-      }
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
     }
   };
 
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   return (
-    <div 
-      ref={gameContainerRef}
-      className="absolute inset-0 bg-gradient-to-b from-night-deep via-card to-night-deep flex flex-col items-center justify-center overflow-hidden"
-    >
+    <div className="absolute inset-0 bg-gradient-to-b from-night-deep via-card to-night-deep flex flex-col items-center justify-center overflow-hidden">
       {/* Animated background particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -92,7 +93,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       </div>
 
       {/* Top controls */}
-      <div className="absolute top-2 right-2 flex gap-1 z-50">
+      <div className="absolute top-2 right-2 flex gap-1">
         <button
           onClick={() => setIsMuted(!isMuted)}
           className="p-1.5 rounded-sm border border-border bg-muted/50 hover:bg-muted transition-colors"
@@ -100,10 +101,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
         </button>
         <button
-          onClick={handleFullscreenToggle}
+          onClick={toggleFullscreen}
           className="p-1.5 rounded-sm border border-border bg-muted/50 hover:bg-muted transition-colors"
         >
-          <Maximize size={14} className={isFullscreen ? 'text-neon-cyan' : ''} />
+          <Maximize size={14} />
         </button>
         <button
           onClick={onSettings}
