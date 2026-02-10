@@ -5,28 +5,29 @@ import { useNavigate } from 'react-router-dom';
 const RPGPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // Lock body scroll and set fullscreen-like mode
   useEffect(() => {
+    // Bloquear scroll pero asegurar que el cursor sea visible
     document.body.style.overflow = 'hidden';
     document.body.style.margin = '0';
-    document.body.style.padding = '0';
+    document.body.style.height = '100dvh';
     
-    // Set meta viewport for mobile
-    const viewport = document.querySelector('meta[name="viewport"]');
-    const originalContent = viewport?.getAttribute('content') || '';
-    viewport?.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+    // IMPORTANTE: Asegurar que el cursor sea visible a nivel global
+    document.body.style.cursor = 'default';
 
     return () => {
       document.body.style.overflow = '';
       document.body.style.margin = '';
-      document.body.style.padding = '';
-      viewport?.setAttribute('content', originalContent);
+      document.body.style.height = '';
+      document.body.style.cursor = '';
     };
   }, []);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-background z-[9999]">
-      <RPGGame onClose={() => navigate('/')} isFullPage />
+    // Agregamos 'cursor-default' explícitamente y un fondo sólido
+    <div className="fixed inset-0 w-full h-[100dvh] bg-black z-[9999] overflow-hidden flex items-center justify-center cursor-default">
+      <div className="w-full h-full pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+        <RPGGame onClose={() => navigate('/')} isFullPage />
+      </div>
     </div>
   );
 };
