@@ -17,11 +17,12 @@ import { generateMapMonsters, monsterDefinitions, overworldMonsterSprites } from
 
 interface RPGGameProps {
   onClose: () => void;
+  isFullPage?: boolean;
 }
 
 type GameMode = 'menu' | 'prologue' | 'playing' | 'combat';
 
-export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
+export const RPGGame: React.FC<RPGGameProps> = ({ onClose, isFullPage = false }) => {
   const { playClick, playHover } = useSoundEffects();
   const { language } = useSettings();
   const isMobile = useIsMobile();
@@ -195,9 +196,9 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/98">
+    <div className={`fixed inset-0 z-[300] flex items-center justify-center ${isFullPage ? 'bg-black' : 'bg-slate-900/98'}`}>
       <div 
-        className="flex flex-col max-w-3xl w-full max-h-[95vh] mx-2"
+        className={`flex flex-col w-full ${isFullPage ? 'h-full max-w-none' : 'max-w-3xl max-h-[95vh] mx-2'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Main Menu */}
@@ -288,14 +289,15 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
             </div>
 
             {/* Game Screen */}
-            <div className="relative border-4 border-slate-700 bg-slate-900 overflow-hidden flex items-center justify-center py-4">
+            <div className={`relative border-4 border-slate-700 bg-slate-900 overflow-hidden flex items-center justify-center ${isFullPage ? 'flex-1' : 'py-4'}`}>
               <GameCanvas
                 gameData={gameData}
                 gameState={gameState}
                 currentMap={currentMap!}
-                pixelSize={isMobile ? 5 : 6}
+                pixelSize={isFullPage ? (isMobile ? 4 : 7) : (isMobile ? 5 : 6)}
                 mapMonsters={mapMonsters}
                 onMonsterEncounter={handleMonsterEncounter}
+                fillContainer={isFullPage}
               />
 
               {/* Dialogue overlay */}

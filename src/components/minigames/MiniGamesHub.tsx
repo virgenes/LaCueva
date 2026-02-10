@@ -11,6 +11,7 @@ import { TicTacToe } from './TicTacToe';
 import { ReactionGame } from './ReactionGame';
 import { RPGGame } from './rpg/RPGGame';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useNavigate } from 'react-router-dom'; // AÑADIDO: Importar useNavigate
 
 interface MiniGamesHubProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
   const { language } = useSettings();
   const [activeGame, setActiveGame] = useState<GameType>(null);
+  const navigate = useNavigate(); // AÑADIDO: Hook para navegación
 
   const isSpanish = language === 'es';
 
@@ -41,6 +43,15 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
 
   const handleSelectGame = (gameId: GameType) => {
     playMenuOpen();
+    
+    // MODIFICADO: Si el juego es 'rpg', navega a la ruta /rpg y cierra el modal
+    if (gameId === 'rpg') {
+      onClose(); // Cierra el modal
+      navigate('/rpg'); // Navega a la página del RPG
+      return;
+    }
+    
+    // Para los otros juegos, mantén el comportamiento actual
     setActiveGame(gameId);
   };
 
@@ -49,8 +60,8 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
     setActiveGame(null);
   };
 
-  // Render active game
-  if (activeGame === 'rpg') return <RPGGame onClose={handleCloseGame} />;
+  // Render active game (excepto 'rpg' que ahora se maneja con navegación)
+  // NOTA: Eliminamos la condición para 'rpg' porque ya no se renderiza aquí
   if (activeGame === 'snake') return <SnakeGame onClose={handleCloseGame} />;
   if (activeGame === 'pong') return <PongGame onClose={handleCloseGame} />;
   if (activeGame === 'clicker') return <ClickerGame onClose={handleCloseGame} />;
@@ -58,6 +69,10 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
   if (activeGame === 'simon') return <SimonGame onClose={handleCloseGame} />;
   if (activeGame === 'tictactoe') return <TicTacToe onClose={handleCloseGame} />;
   if (activeGame === 'reaction') return <ReactionGame onClose={handleCloseGame} />;
+  
+  // NOTA: También podemos eliminar la importación y el uso de RPGGame aquí, ya que no se usará.
+  // Pero por ahora lo dejamos por si acaso.
+
   return (
     <div 
       className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 bg-night-deep/95 backdrop-blur-sm"

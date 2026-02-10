@@ -271,22 +271,66 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
     setTargetMode(false);
   }, [isSpanish, onFlee]);
 
-  // Enemy AI
+  // Enemy AI - uses skills intelligently based on AI type
   useEffect(() => {
     if (combatState.phase === 'enemy_select' && currentActor) {
       const timer = setTimeout(() => {
-        // Simple AI: attack random player
         const alivePlayers = combatState.playerParty.filter(p => p.stats.hp > 0);
-        if (alivePlayers.length > 0) {
-          const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+        if (alivePlayers.length === 0) return;
+
+        const availableSkills = currentActor.skills.filter(s => s && s.id);
+        
+        // Determine action based on enemy's available skills
+        let chosenSkill = defaultSkills.basic_attack;
+        let target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+
+        if (availableSkills.length > 1) {
+          // Smart AI: use special skills sometimes
+          const useSpecial = Math.random() < 0.6; // 60% chance to use a special skill
+          
+          if (useSpecial) {
+            // Pick a non-basic skill
+            const specialSkills = availableSkills.filter(s => s.id !== 'basic_attack' && s.id !== 'defend');
+            if (specialSkills.length > 0) {
+              chosenSkill = specialSkills[Math.floor(Math.random() * specialSkills.length)];
+            }
+          }
+
+          // If HP is low and has healing/defensive skills, prioritize defense
+          const hpPercent = currentActor.stats.hp / currentActor.stats.maxHp;
+          if (hpPercent < 0.3) {
+            const defensiveSkills = availableSkills.filter(s => 
+              s.type === 'buff' || s.type === 'heal' || s.id === 'defend'
+            );
+            if (defensiveSkills.length > 0 && Math.random() < 0.7) {
+              chosenSkill = defensiveSkills[Math.floor(Math.random() * defensiveSkills.length)];
+            }
+          }
+
+          // Target lowest HP player for aggressive attacks
+          if (chosenSkill.type === 'attack' || chosenSkill.type === 'magic') {
+            target = alivePlayers.reduce((lowest, p) => 
+              p.stats.hp < lowest.stats.hp ? p : lowest
+            , alivePlayers[0]);
+          }
+        }
+
+        if (chosenSkill.targetType === 'self') {
           executeAction({
-            type: 'attack',
+            type: 'skill',
             actorId: currentActor.id,
-            targetId: target.id,
-            skillId: 'basic_attack',
+            targetId: currentActor.id,
+            skillId: chosenSkill.id,
+          });
+        } else {
+          executeAction({
+            type: chosenSkill.type === 'attack' || chosenSkill.type === 'magic' ? 'attack' : 'skill',
+            actorId: currentActor.id,
+            targetId: chosenSkill.targetType === 'all' ? target.id : target.id,
+            skillId: chosenSkill.id,
           });
         }
-      }, 1000);
+      }, 1200);
       return () => clearTimeout(timer);
     }
   }, [combatState.phase, currentActor, combatState.playerParty, executeAction]);

@@ -193,6 +193,28 @@ export const overworldMonsterSprites: Record<string, string[][]> = {
     [T, M.ghostBody, T, M.ghostBody, M.ghostBody, T, M.ghostBody, T],
     [T, T, T, T, T, T, T, T],
   ],
+  // Boss: Memory Wraith
+  memory_wraith: [
+    [T, '#4a2a6a', '#4a2a6a', T, T, '#4a2a6a', '#4a2a6a', T],
+    ['#4a2a6a', '#6a4a8a', '#6a4a8a', '#4a2a6a', '#4a2a6a', '#6a4a8a', '#6a4a8a', '#4a2a6a'],
+    ['#4a2a6a', '#00ffff', '#6a4a8a', '#6a4a8a', '#6a4a8a', '#6a4a8a', '#00ffff', '#4a2a6a'],
+    [T, '#4a2a6a', '#6a4a8a', '#6a4a8a', '#6a4a8a', '#6a4a8a', '#4a2a6a', T],
+    [T, '#4a2a6a', '#6a4a8a', '#6a4a8a', '#6a4a8a', '#6a4a8a', '#4a2a6a', T],
+    ['#4a2a6a', '#6a4a8a', T, '#6a4a8a', '#6a4a8a', T, '#6a4a8a', '#4a2a6a'],
+    [T, '#4a2a6a', T, T, T, T, '#4a2a6a', T],
+    [T, T, '#4a2a6a', T, T, '#4a2a6a', T, T],
+  ],
+  // Boss: Void Guardian
+  void_guardian: [
+    ['#1a1a2e', '#1a1a2e', '#1a1a2e', '#ff00ff', '#ff00ff', '#1a1a2e', '#1a1a2e', '#1a1a2e'],
+    ['#1a1a2e', '#2a2a4e', '#2a2a4e', '#ff00ff', '#ff00ff', '#2a2a4e', '#2a2a4e', '#1a1a2e'],
+    ['#2a2a4e', '#3a3a6e', '#ff0000', '#3a3a6e', '#3a3a6e', '#ff0000', '#3a3a6e', '#2a2a4e'],
+    ['#2a2a4e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#2a2a4e'],
+    ['#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e'],
+    ['#2a2a4e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#2a2a4e'],
+    ['#1a1a2e', '#2a2a4e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#3a3a6e', '#2a2a4e', '#1a1a2e'],
+    ['#1a1a2e', '#1a1a2e', '#2a2a4e', '#2a2a4e', '#2a2a4e', '#2a2a4e', '#1a1a2e', '#1a1a2e'],
+  ],
 };
 
 // Monster definitions with stats for combat
@@ -330,6 +352,31 @@ export const monsterDefinitions: Record<string, MapMonsterDefinition> = {
     defense: 0,
     speed: 15,
     expReward: 0,
+  },
+  // === BOSSES ===
+  memory_wraith: {
+    id: 'memory_wraith',
+    name: 'Memory Wraith',
+    nameEs: 'Espectro de Memoria',
+    spriteKey: 'memory_wraith',
+    hostile: true,
+    hp: 150,
+    attack: 18,
+    defense: 10,
+    speed: 9,
+    expReward: 120,
+  },
+  void_guardian: {
+    id: 'void_guardian',
+    name: 'Void Guardian',
+    nameEs: 'Guardián del Vacío',
+    spriteKey: 'void_guardian',
+    hostile: true,
+    hp: 250,
+    attack: 25,
+    defense: 18,
+    speed: 5,
+    expReward: 250,
   },
 };
 

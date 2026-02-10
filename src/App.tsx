@@ -5,20 +5,20 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route, useLocation } from "react-router-dom"; // Mantenemos HashRouter estrictamente
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { YouTubeMusicProvider } from "@/contexts/YouTubeMusicContext";
-import { FavoritesProvider } from "@/contexts/FavoritesContext"; // NUEVO: Importación de favoritos
+import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { DraggablePlayer } from "@/components/DraggablePlayer";
 import { CustomCursor } from "@/components/CustomCursor";
 import { AnimatePresence } from "framer-motion";
-
 import Index from "./pages/Index";
 import GamesPage from "./pages/GamesPage";
 import ArtPage from "./pages/ArtPage";
 import MusicPage from "./pages/MusicPage";
 import NotFound from "./pages/NotFound";
+import RPGPage from "./pages/RPGPage";
 
 const queryClient = new QueryClient();
 
-// Componente para envolver las rutas con animaciones
+// Animated Routes wrapper
 const AnimatedRoutes = () => {
   const location = useLocation();
   
@@ -29,13 +29,14 @@ const AnimatedRoutes = () => {
         <Route path="/juegos" element={<GamesPage />} />
         <Route path="/arte" element={<ArtPage />} />
         <Route path="/musica" element={<MusicPage />} />
+        <Route path="/rpg" element={<RPGPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
   );
 };
 
-// Wrapper del cursor que respeta la configuración
+// Cursor wrapper that respects settings
 const CursorWrapper = () => {
   const { customCursorEnabled } = useSettings();
   if (!customCursorEnabled) return null;
@@ -45,22 +46,16 @@ const CursorWrapper = () => {
 const App = () => (
   <SettingsProvider>
     <YouTubeMusicProvider>
-      {/* NUEVO: FavoritesProvider agregado a la jerarquía */}
       <FavoritesProvider>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
-            {/* Lógica condicional del cursor */}
             <CursorWrapper />
-            
             <Toaster />
             <Sonner />
-            
-            {/* Mantenemos HashRouter estrictamente */}
-            <HashRouter>
+            <HashRouter> {/* Cambiado de BrowserRouter a HashRouter */}
               <AnimatedRoutes />
             </HashRouter>
-            
-            {/* Reproductor persistente */}
+            {/* YouTube Player persists across pages */}
             <DraggablePlayer />
           </TooltipProvider>
         </QueryClientProvider>

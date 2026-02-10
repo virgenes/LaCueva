@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { SpriteRenderer } from './SpriteRenderer';
 import { GameData, GameState, GameMap, Position } from '../types/GameTypes';
 import { imageTiles, isImageTile, isObjectTile, getGroundTileFor } from '../data/imageTiles';
@@ -10,6 +10,7 @@ interface GameCanvasProps {
   pixelSize?: number;
   mapMonsters?: MapMonster[];
   onMonsterEncounter?: (monster: MapMonster) => void;
+  fillContainer?: boolean;
 }
 
 export interface MapMonster {
@@ -23,14 +24,41 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   gameData,
   gameState,
   currentMap,
-  pixelSize = 5, // Increased for bigger display
+  pixelSize = 5,
   mapMonsters = [],
   onMonsterEncounter,
+  fillContainer = false,
 }) => {
-  const tileSize = 8 * pixelSize; // 8x8 grid * pixel size
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  // LARGER viewport for better view
-  const viewportTiles = { width: 13, height: 9 };
+  // Measure container for fillContainer mode
+  useEffect(() => {
+    if (!fillContainer || !containerRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setContainerSize({ width, height });
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [fillContainer]);
+
+  // Calculate effective tile size and viewport
+  const { tileSize, viewportTiles } = useMemo(() => {
+    if (fillContainer && containerSize.width > 0) {
+      // Calculate tileSize to fill the container
+      const maxTilesW = Math.min(currentMap.width, 20);
+      const maxTilesH = Math.min(currentMap.height, 14);
+      const tileSizeW = Math.floor(containerSize.width / maxTilesW);
+      const tileSizeH = Math.floor(containerSize.height / maxTilesH);
+      const ts = Math.max(16, Math.min(tileSizeW, tileSizeH));
+      const vw = Math.min(currentMap.width, Math.floor(containerSize.width / ts));
+      const vh = Math.min(currentMap.height, Math.floor(containerSize.height / ts));
+      return { tileSize: ts, viewportTiles: { width: vw, height: vh } };
+    }
+    const ts = 8 * pixelSize;
+    return { tileSize: ts, viewportTiles: { width: 13, height: 9 } };
+  }, [fillContainer, containerSize, pixelSize, currentMap.width, currentMap.height]);
   
   const cameraOffset = useMemo(() => {
     const centerX = Math.floor(viewportTiles.width / 2);
@@ -237,11 +265,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   return (
     <div 
-      className="relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-800 rounded-lg shadow-2xl border-4 border-slate-700"
-      style={{
+      ref={containerRef}
+      className={`relative overflow-hidden bg-gradient-to-b from-slate-900 to-slate-800 ${fillContainer ? 'w-full h-full' : 'rounded-lg shadow-2xl border-4 border-slate-700'}`}
+      style={fillContainer ? {
+        imageRendering: 'pixelated' as const,
+      } : {
         width: viewportTiles.width * tileSize,
         height: viewportTiles.height * tileSize,
-        imageRendering: 'pixelated',
+        imageRendering: 'pixelated' as const,
       }}
     >
       {/* Tiles layer */}
