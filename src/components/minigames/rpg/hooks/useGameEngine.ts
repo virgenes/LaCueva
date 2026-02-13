@@ -1,9 +1,13 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, GameData, Position, Dialogue, Character, Tile } from '../types/GameTypes';
+import { useReducer, useCallback, useEffect, useRef, useMemo } from 'react';
+import { GameData, Dialogue, Character, Tile } from '../types/GameTypes';
+import { EngineState } from '../types/GameActions';
+import { gameReducer, getTileAtPure, getNpcAtPure } from './gameReducer';
+import { useDialogueManager } from './useDialogueManager';
 import { defaultSprites, defaultTiles } from '../data/defaultSprites';
 import { defaultDialogues, defaultCharacters, defaultItems } from '../data/defaultDialogues';
-import { defaultMaps, teleporterConnections } from '../data/defaultMap';
+import { defaultMaps } from '../data/defaultMap';
 import { imageTiles, isImageTile, ImageTile } from '../data/imageTiles';
+import { SpatialHash, SpatialEntity } from '../systems/SpatialHash';
 
 const STORAGE_KEY = 'rpg_game_state';
 const MODS_KEY = 'rpg_game_mods';
@@ -29,7 +33,7 @@ const initialGameData: GameData = {
   },
 };
 
-const createInitialState = (gameData: GameData): GameState => {
+function createInitialEngineState(gameData: GameData): EngineState {
   const startMap = gameData.maps['memory_garden'];
   return {
     currentMapId: 'memory_garden',
@@ -40,343 +44,176 @@ const createInitialState = (gameData: GameData): GameState => {
     dialogueHistory: [],
     playtime: 0,
     savedAt: Date.now(),
+    activeDialogueId: null,
+    dialogueIndex: 0,
+    displayedText: '',
+    isTyping: false,
+    isPaused: false,
+    showModMenu: false,
+    language: 'es',
+    gameData,
   };
-};
+}
 
 export const useGameEngine = () => {
-  const [gameData, setGameData] = useState<GameData>(initialGameData);
-  const [gameState, setGameState] = useState<GameState>(() => createInitialState(initialGameData));
-  const [activeDialogue, setActiveDialogue] = useState<Dialogue | null>(null);
-  const [dialogueIndex, setDialogueIndex] = useState(0);
-  const [isTyping, setIsTyping] = useState(false);
-  const [displayedText, setDisplayedText] = useState('');
-  const [isPaused, setIsPaused] = useState(false);
-  const [showModMenu, setShowModMenu] = useState(false);
-  
+  const [state, dispatch] = useReducer(gameReducer, initialGameData, createInitialEngineState);
+
   const keysPressed = useRef<Set<string>>(new Set());
   const lastMoveTime = useRef(0);
   const animationFrame = useRef(0);
 
-  // Load saved state
+  // Dialogue typing effect — delegated to specialized hook
+  useDialogueManager(state, dispatch);
+
+  // Load saved state on mount
   useEffect(() => {
     try {
-      const savedState = localStorage.getItem(STORAGE_KEY);
-      if (savedState) {
-        setGameState(JSON.parse(savedState));
-      }
-      
+      let loadedData = initialGameData;
       const savedMods = localStorage.getItem(MODS_KEY);
       if (savedMods) {
-        const moddedData = JSON.parse(savedMods);
-        setGameData(prev => ({ ...prev, ...moddedData }));
+        loadedData = { ...initialGameData, ...JSON.parse(savedMods) };
+        dispatch({ type: 'UPDATE_GAME_DATA', data: loadedData });
+      }
+      const savedState = localStorage.getItem(STORAGE_KEY);
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        dispatch({
+          type: 'LOAD_STATE',
+          payload: {
+            currentMapId: parsed.currentMapId,
+            playerPosition: parsed.playerPosition,
+            playerDirection: parsed.playerDirection,
+            flags: parsed.flags,
+            inventory: parsed.inventory,
+            dialogueHistory: parsed.dialogueHistory,
+            playtime: parsed.playtime,
+            savedAt: parsed.savedAt,
+          },
+        });
       }
     } catch (e) {
       console.error('Failed to load game state:', e);
     }
   }, []);
 
-  // Auto-save
+  // Auto-save every 10s
   useEffect(() => {
-    const saveInterval = setInterval(() => {
+    const interval = setInterval(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        ...gameState,
+        currentMapId: state.currentMapId,
+        playerPosition: state.playerPosition,
+        playerDirection: state.playerDirection,
+        flags: state.flags,
+        inventory: state.inventory,
+        dialogueHistory: state.dialogueHistory,
+        playtime: state.playtime,
         savedAt: Date.now(),
       }));
     }, 10000);
+    return () => clearInterval(interval);
+  }, [state.currentMapId, state.playerPosition, state.playerDirection, state.flags, state.inventory, state.dialogueHistory, state.playtime]);
 
-    return () => clearInterval(saveInterval);
-  }, [gameState]);
+  const currentMap = state.gameData.maps[state.currentMapId];
 
-  // Get current map
-  const currentMap = gameData.maps[gameState.currentMapId];
-  
-  // Get tile at position - supports both array tiles and image tiles
-  const getTileAt = useCallback((x: number, y: number): Tile | ImageTile | null => {
-    if (!currentMap) return null;
-    const groundLayer = currentMap.layers.find(l => l.name === 'ground');
-    if (!groundLayer || y < 0 || y >= groundLayer.tiles.length || x < 0 || x >= groundLayer.tiles[0].length) {
-      return null;
-    }
-    const tileId = groundLayer.tiles[y][x];
-    if (!tileId) return null;
-    
-    // Check if it's an image tile first
-    if (isImageTile(tileId)) {
-      return imageTiles[tileId] || null;
-    }
-    
-    // Fall back to array-based tile
-    return gameData.tiles[tileId] || null;
-  }, [currentMap, gameData.tiles]);
+  // ===== SPATIAL HASH =====
+  // Rebuild when map or NPC positions change
+  const spatialHash = useMemo(() => {
+    const hash = new SpatialHash(16);
+    if (!currentMap) return hash;
 
-  // Check NPC at position
-  const getNpcAt = useCallback((x: number, y: number): Character | null => {
-    if (!currentMap) return null;
+    // Insert NPCs
     for (const npcId of currentMap.npcs) {
-      const npc = gameData.characters[npcId];
-      if (npc && npc.position.x === x && npc.position.y === y) {
-        return npc;
+      const npc = state.gameData.characters[npcId];
+      if (npc) {
+        hash.insert({ id: npcId, x: npc.position.x, y: npc.position.y, type: 'npc' });
       }
     }
-    return null;
-  }, [currentMap, gameData.characters]);
 
-  // Check if position is walkable
-  const canMoveTo = useCallback((x: number, y: number): boolean => {
-    const tile = getTileAt(x, y);
-    if (!tile || tile.solid) return false;
-    
-    // Check for NPCs
-    const npc = getNpcAt(x, y);
-    if (npc) return false;
-    
-    return true;
-  }, [getTileAt, getNpcAt]);
+    return hash;
+  }, [currentMap?.id, currentMap?.npcs, state.gameData.characters]);
 
-  // Move player with auto-teleport
+  // Method to insert monsters into spatialHash (called by RPGGame when monsters are generated)
+  const insertMonstersIntoHash = useCallback((monsters: Array<{ id: string; position: { x: number; y: number } }>) => {
+    // Remove old monsters
+    // Note: spatialHash is recreated on map change, so old monsters are automatically cleaned
+    for (const monster of monsters) {
+      spatialHash.insert({ id: monster.id, x: monster.position.x, y: monster.position.y, type: 'monster' });
+    }
+  }, [spatialHash]);
+
+  // Movement with throttle
   const movePlayer = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    if (activeDialogue || isPaused) return;
-
     const now = Date.now();
     if (now - lastMoveTime.current < 150) return;
     lastMoveTime.current = now;
+    dispatch({ type: 'MOVE_PLAYER', direction });
+  }, []);
 
-    setGameState(prev => {
-      const newPos = { ...prev.playerPosition };
-      
-      switch (direction) {
-        case 'up': newPos.y -= 1; break;
-        case 'down': newPos.y += 1; break;
-        case 'left': newPos.x -= 1; break;
-        case 'right': newPos.x += 1; break;
-      }
-
-      if (canMoveTo(newPos.x, newPos.y)) {
-        // Check for teleporter
-        const tile = getTileAt(newPos.x, newPos.y);
-        
-        if (tile && tile.interactable && tile.interactionType === 'teleport') {
-          const connectionKey = `${prev.currentMapId}_${newPos.x}_${newPos.y}`;
-          const connection = teleporterConnections[connectionKey];
-          
-          if (connection) {
-            return {
-              ...prev,
-              currentMapId: connection.mapId,
-              playerPosition: { x: connection.x, y: connection.y },
-              playerDirection: direction,
-            };
-          }
-        }
-
-        return {
-          ...prev,
-          playerPosition: newPos,
-          playerDirection: direction,
-        };
-      }
-      
-      return { ...prev, playerDirection: direction };
-    });
-  }, [activeDialogue, isPaused, canMoveTo, getTileAt]);
-
-  // Interact with what's in front of player
   const interact = useCallback(() => {
-    if (activeDialogue) {
-      if (isTyping) {
-        setIsTyping(false);
-        const currentLine = activeDialogue.lines[dialogueIndex];
-        setDisplayedText(currentLine.text);
-      } else if (dialogueIndex < activeDialogue.lines.length - 1) {
-        setDialogueIndex(prev => prev + 1);
-        setIsTyping(true);
-        setDisplayedText('');
-      } else if (activeDialogue.choices && activeDialogue.choices.length > 0) {
-        // Show choices - handled in UI
-      } else {
-        if (activeDialogue.setFlag) {
-          setGameState(prev => ({
-            ...prev,
-            flags: { ...prev.flags, [activeDialogue.setFlag!]: true },
-            dialogueHistory: [...prev.dialogueHistory, activeDialogue.id],
-          }));
-        }
-        if (activeDialogue.nextDialogueId) {
-          const nextDialogue = gameData.dialogues[activeDialogue.nextDialogueId];
-          if (nextDialogue) {
-            setActiveDialogue(nextDialogue);
-            setDialogueIndex(0);
-            setIsTyping(true);
-            setDisplayedText('');
-            return;
-          }
-        }
-        setActiveDialogue(null);
-        setDialogueIndex(0);
-      }
-      return;
-    }
+    dispatch({ type: 'ADVANCE_DIALOGUE' });
+  }, []);
 
-    // Check what's in front of player
-    const facingPos = { ...gameState.playerPosition };
-    switch (gameState.playerDirection) {
-      case 'up': facingPos.y -= 1; break;
-      case 'down': facingPos.y += 1; break;
-      case 'left': facingPos.x -= 1; break;
-      case 'right': facingPos.x += 1; break;
-    }
-
-    // Check for NPC
-    const npc = getNpcAt(facingPos.x, facingPos.y);
-    if (npc && npc.dialogueIds.length > 0) {
-      const dialogueId = npc.dialogueIds[0];
-      const dialogue = gameData.dialogues[dialogueId];
-      if (dialogue) {
-        setActiveDialogue(dialogue);
-        setDialogueIndex(0);
-        setIsTyping(true);
-        setDisplayedText('');
-        return;
-      }
-    }
-
-    // Check for interactive tile
-    const tile = getTileAt(facingPos.x, facingPos.y);
-    if (tile && tile.interactable) {
-      if (tile.interactionType === 'dialogue' && tile.interactionData) {
-        const dialogue = gameData.dialogues[tile.interactionData];
-        if (dialogue) {
-          setActiveDialogue(dialogue);
-          setDialogueIndex(0);
-          setIsTyping(true);
-          setDisplayedText('');
-        }
-      } else if (tile.interactionType === 'teleport') {
-        const connectionKey = `${gameState.currentMapId}_${facingPos.x}_${facingPos.y}`;
-        const connection = teleporterConnections[connectionKey];
-        
-        if (connection) {
-          setGameState(prev => ({
-            ...prev,
-            currentMapId: connection.mapId,
-            playerPosition: { x: connection.x, y: connection.y },
-          }));
-        }
-      }
-    }
-  }, [activeDialogue, dialogueIndex, isTyping, gameState, gameData.dialogues, getNpcAt, getTileAt]);
-
-  // Select dialogue choice
   const selectChoice = useCallback((choiceIndex: number) => {
-    if (!activeDialogue || !activeDialogue.choices) return;
-    
-    const choice = activeDialogue.choices[choiceIndex];
-    if (choice.setFlag) {
-      setGameState(prev => ({
-        ...prev,
-        flags: { ...prev.flags, [choice.setFlag!]: true },
-      }));
-    }
-    
-    const nextDialogue = gameData.dialogues[choice.nextDialogueId];
-    if (nextDialogue) {
-      setActiveDialogue(nextDialogue);
-      setDialogueIndex(0);
-      setIsTyping(true);
-      setDisplayedText('');
-    } else {
-      setActiveDialogue(null);
-      setDialogueIndex(0);
-    }
-  }, [activeDialogue, gameData.dialogues]);
-
-  // Typing effect for dialogue
-  useEffect(() => {
-    if (!activeDialogue || !isTyping) return;
-    
-    const currentLine = activeDialogue.lines[dialogueIndex];
-    if (!currentLine) return;
-    
-    const fullText = currentLine.text;
-    let charIndex = displayedText.length;
-    
-    if (charIndex >= fullText.length) {
-      setIsTyping(false);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setDisplayedText(fullText.substring(0, charIndex + 1));
-    }, gameData.config.dialogueSpeed);
-
-    return () => clearTimeout(timer);
-  }, [activeDialogue, dialogueIndex, displayedText, isTyping, gameData.config.dialogueSpeed]);
+    dispatch({ type: 'SELECT_DIALOGUE_CHOICE', choiceIndex });
+  }, []);
 
   // Keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keysPressed.current.add(e.key.toLowerCase());
-      
       if (e.key === ' ' || e.key === 'Enter' || e.key === 'z') {
         e.preventDefault();
-        interact();
+        dispatch({ type: 'ADVANCE_DIALOGUE' });
       }
       if (e.key === 'Escape') {
-        if (activeDialogue) {
-          setActiveDialogue(null);
-          setDialogueIndex(0);
+        if (state.activeDialogueId) {
+          dispatch({ type: 'CLOSE_DIALOGUE' });
         } else {
-          setIsPaused(prev => !prev);
+          dispatch({ type: 'SET_PAUSED', paused: !state.isPaused });
         }
       }
-      if (e.key === 'm' || e.key === 'M') {
-        if (!activeDialogue) {
-          setShowModMenu(prev => !prev);
-        }
+      if ((e.key === 'm' || e.key === 'M') && !state.activeDialogueId) {
+        dispatch({ type: 'TOGGLE_MOD_MENU' });
       }
     };
-
     const handleKeyUp = (e: KeyboardEvent) => {
       keysPressed.current.delete(e.key.toLowerCase());
     };
-
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [interact, activeDialogue]);
+  }, [state.activeDialogueId, state.isPaused]);
 
   // Movement loop
   useEffect(() => {
     const gameLoop = () => {
-      if (!isPaused && !activeDialogue) {
-        if (keysPressed.current.has('arrowup') || keysPressed.current.has('w')) {
-          movePlayer('up');
-        } else if (keysPressed.current.has('arrowdown') || keysPressed.current.has('s')) {
-          movePlayer('down');
-        } else if (keysPressed.current.has('arrowleft') || keysPressed.current.has('a')) {
-          movePlayer('left');
-        } else if (keysPressed.current.has('arrowright') || keysPressed.current.has('d')) {
-          movePlayer('right');
-        }
+      if (!state.isPaused && !state.activeDialogueId) {
+        if (keysPressed.current.has('arrowup') || keysPressed.current.has('w')) movePlayer('up');
+        else if (keysPressed.current.has('arrowdown') || keysPressed.current.has('s')) movePlayer('down');
+        else if (keysPressed.current.has('arrowleft') || keysPressed.current.has('a')) movePlayer('left');
+        else if (keysPressed.current.has('arrowright') || keysPressed.current.has('d')) movePlayer('right');
       }
       animationFrame.current = requestAnimationFrame(gameLoop);
     };
-
     animationFrame.current = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationFrame.current);
-  }, [movePlayer, isPaused, activeDialogue]);
+  }, [movePlayer, state.isPaused, state.activeDialogueId]);
 
-  // Export game data
+  // Tile/NPC helpers
+  const getTileAt = useCallback((x: number, y: number): Tile | ImageTile | null => {
+    return getTileAtPure(state, x, y);
+  }, [state.currentMapId, state.gameData.tiles]);
+
+  const getNpcAt = useCallback((x: number, y: number): Character | null => {
+    return getNpcAtPure(state, x, y);
+  }, [state.currentMapId, state.gameData.characters]);
+
+  // Export/import/reset
   const exportGameData = useCallback(() => {
-    const exportData = {
-      gameData,
-      gameState,
-      exportedAt: Date.now(),
-    };
+    const exportData = { gameData: state.gameData, gameState: state, exportedAt: Date.now() };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -384,59 +221,82 @@ export const useGameEngine = () => {
     a.download = 'rpg_mod_data.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [gameData, gameState]);
+  }, [state]);
 
-  // Import game data
   const importGameData = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
         if (data.gameData) {
-          setGameData(prev => ({ ...prev, ...data.gameData }));
+          dispatch({ type: 'UPDATE_GAME_DATA', data: { ...state.gameData, ...data.gameData } });
           localStorage.setItem(MODS_KEY, JSON.stringify(data.gameData));
-        }
-        if (data.gameState) {
-          setGameState(data.gameState);
         }
       } catch (err) {
         console.error('Failed to import mod:', err);
       }
     };
     reader.readAsText(file);
-  }, []);
+  }, [state.gameData]);
 
-  // Reset to defaults
   const resetGame = useCallback(() => {
-    setGameData(initialGameData);
-    setGameState(createInitialState(initialGameData));
+    dispatch({ type: 'RESET', initialState: createInitialEngineState(initialGameData) });
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(MODS_KEY);
   }, []);
 
-  // Save current state
   const saveGame = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      ...gameState,
+      currentMapId: state.currentMapId,
+      playerPosition: state.playerPosition,
+      playerDirection: state.playerDirection,
+      flags: state.flags,
+      inventory: state.inventory,
+      dialogueHistory: state.dialogueHistory,
+      playtime: state.playtime,
       savedAt: Date.now(),
     }));
-  }, [gameState]);
+  }, [state]);
+
+  const setGameData = useCallback((dataOrFn: GameData | ((prev: GameData) => GameData)) => {
+    if (typeof dataOrFn === 'function') {
+      dispatch({ type: 'UPDATE_GAME_DATA', data: dataOrFn(state.gameData) });
+    } else {
+      dispatch({ type: 'UPDATE_GAME_DATA', data: dataOrFn });
+    }
+  }, [state.gameData]);
+
+  // Backwards-compatible dialogue object
+  const activeDialogue: Dialogue | null = state.activeDialogueId
+    ? state.gameData.dialogues[state.activeDialogueId] || null
+    : null;
+
+  const gameState = {
+    currentMapId: state.currentMapId,
+    playerPosition: state.playerPosition,
+    playerDirection: state.playerDirection,
+    flags: state.flags,
+    inventory: state.inventory,
+    dialogueHistory: state.dialogueHistory,
+    playtime: state.playtime,
+    savedAt: state.savedAt,
+  };
 
   return {
-    gameData,
+    gameData: state.gameData,
     gameState,
     currentMap,
     activeDialogue,
-    dialogueIndex,
-    displayedText,
-    isTyping,
-    isPaused,
-    showModMenu,
-    setShowModMenu,
+    dialogueIndex: state.dialogueIndex,
+    displayedText: state.displayedText,
+    isTyping: state.isTyping,
+    isPaused: state.isPaused,
+    showModMenu: state.showModMenu,
+    setShowModMenu: (show: boolean) => dispatch({ type: 'SET_MOD_MENU', show }),
     movePlayer,
     interact,
     selectChoice,
-    setIsPaused,
+    setIsPaused: (paused: boolean) => dispatch({ type: 'SET_PAUSED', paused }),
     getTileAt,
     getNpcAt,
     exportGameData,
@@ -444,5 +304,7 @@ export const useGameEngine = () => {
     resetGame,
     saveGame,
     setGameData,
+    spatialHash,
+    insertMonstersIntoHash,
   };
 };
