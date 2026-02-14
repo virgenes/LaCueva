@@ -1,6 +1,6 @@
 // Pure game reducer — no side effects, fully testable
 import { GameAction, EngineState } from '../types/GameActions';
-import { Dialogue } from '../types/GameTypes';
+import { InventoryEntry } from '../types/GameTypes';
 import { imageTiles, isImageTile } from '../data/imageTiles';
 import { teleporterConnections } from '../data/defaultMap';
 
@@ -58,8 +58,9 @@ function movePlayerPure(state: EngineState, direction: 'up' | 'down' | 'left' | 
   const newPos = getFacingPos(state.playerPosition, direction);
 
   if (!canMoveToPure(state, newPos.x, newPos.y)) {
-    // Can't move, just update direction
-    return state.playerDirection === direction ? state : { ...state, playerDirection: direction };
+    return state.playerDirection === direction
+      ? { ...state, isWalking: false }
+      : { ...state, playerDirection: direction, isWalking: false };
   }
 
   // Check for auto-teleport
@@ -73,11 +74,12 @@ function movePlayerPure(state: EngineState, direction: 'up' | 'down' | 'left' | 
         currentMapId: conn.mapId,
         playerPosition: { x: conn.x, y: conn.y },
         playerDirection: direction,
+        isWalking: false,
       };
     }
   }
 
-  return { ...state, playerPosition: newPos, playerDirection: direction };
+  return { ...state, playerPosition: newPos, playerDirection: direction, isWalking: true };
 }
 
 /** Start a dialogue by id */
@@ -99,21 +101,17 @@ function advanceDialoguePure(state: EngineState): EngineState {
   const dialogue = state.gameData.dialogues[state.activeDialogueId];
   if (!dialogue) return { ...state, activeDialogueId: null, dialogueIndex: 0 };
 
-  // If typing, finish it immediately
   if (state.isTyping) {
     const line = dialogue.lines[state.dialogueIndex];
     return { ...state, isTyping: false, displayedText: line?.text || '' };
   }
 
-  // If not last line, go next
   if (state.dialogueIndex < dialogue.lines.length - 1) {
     return { ...state, dialogueIndex: state.dialogueIndex + 1, isTyping: true, displayedText: '' };
   }
 
-  // If has choices, do nothing (UI handles choice selection)
   if (dialogue.choices && dialogue.choices.length > 0) return state;
 
-  // End dialogue — set flags, chain to next
   let newState = { ...state };
   if (dialogue.setFlag) {
     newState.flags = { ...newState.flags, [dialogue.setFlag]: true };
@@ -145,18 +143,15 @@ function selectChoicePure(state: EngineState, choiceIndex: number): EngineState 
 
 /** Handle interact (talk to NPC, read sign, use teleporter) */
 function interactPure(state: EngineState): EngineState {
-  // If dialogue is active, advance it
   if (state.activeDialogueId) return advanceDialoguePure(state);
 
   const facingPos = getFacingPos(state.playerPosition, state.playerDirection);
 
-  // Check NPC
   const npc = getNpcAtPure(state, facingPos.x, facingPos.y);
   if (npc && npc.dialogueIds.length > 0) {
     return startDialoguePure(state, npc.dialogueIds[0]);
   }
 
-  // Check tile interaction
   const tile = getTileAtPure(state, facingPos.x, facingPos.y);
   if (tile && tile.interactable) {
     if (tile.interactionType === 'dialogue' && tile.interactionData) {
@@ -174,12 +169,31 @@ function interactPure(state: EngineState): EngineState {
   return state;
 }
 
+// ============ INVENTORY HELPERS ============
+
+function addInventoryItem(inventory: InventoryEntry[], itemId: string, quantity = 1): InventoryEntry[] {
+  const existing = inventory.find(e => e.itemId === itemId);
+  if (existing) {
+    return inventory.map(e => e.itemId === itemId ? { ...e, quantity: e.quantity + quantity } : e);
+  }
+  return [...inventory, { itemId, quantity }];
+}
+
+function removeInventoryItem(inventory: InventoryEntry[], itemId: string, quantity = 1): InventoryEntry[] {
+  return inventory
+    .map(e => e.itemId === itemId ? { ...e, quantity: e.quantity - quantity } : e)
+    .filter(e => e.quantity > 0);
+}
+
 // ============ THE REDUCER ============
 
 export function gameReducer(state: EngineState, action: GameAction): EngineState {
   switch (action.type) {
     case 'MOVE_PLAYER':
       return movePlayerPure(state, action.direction);
+
+    case 'STOP_WALKING':
+      return state.isWalking ? { ...state, isWalking: false } : state;
 
     case 'TELEPORT':
       return { ...state, currentMapId: action.mapId, playerPosition: { x: action.x, y: action.y } };
@@ -206,10 +220,22 @@ export function gameReducer(state: EngineState, action: GameAction): EngineState
       return { ...state, flags: { ...state.flags, [action.flag]: action.value } };
 
     case 'ADD_INVENTORY_ITEM':
-      return { ...state, inventory: [...state.inventory, action.itemId] };
+      return { ...state, inventory: addInventoryItem(state.inventory, action.itemId, action.quantity) };
 
     case 'REMOVE_INVENTORY_ITEM':
-      return { ...state, inventory: state.inventory.filter(i => i !== action.itemId) };
+      return { ...state, inventory: removeInventoryItem(state.inventory, action.itemId, action.quantity) };
+
+    case 'ADD_GOLD':
+      return { ...state, gold: state.gold + action.amount };
+
+    case 'UPDATE_CHARACTER_STATS': {
+      const chars = { ...state.gameData.characters };
+      if (chars[action.characterId]) {
+        chars[action.characterId] = { ...chars[action.characterId], stats: action.stats };
+      }
+      const levels = { ...state.characterLevels, [action.characterId]: { level: action.stats.level, exp: action.stats.exp } };
+      return { ...state, gameData: { ...state.gameData, characters: chars }, characterLevels: levels };
+    }
 
     case 'SET_PAUSED':
       return { ...state, isPaused: action.paused };

@@ -1,16 +1,14 @@
 import { useReducer, useCallback, useEffect, useRef, useMemo } from 'react';
-import { GameData, Dialogue, Character, Tile } from '../types/GameTypes';
+import { GameData, Dialogue, Character, Tile, GameState, InventoryEntry, awardExp } from '../types/GameTypes';
 import { EngineState } from '../types/GameActions';
 import { gameReducer, getTileAtPure, getNpcAtPure } from './gameReducer';
 import { useDialogueManager } from './useDialogueManager';
+import { usePersistence } from './usePersistence';
 import { defaultSprites, defaultTiles } from '../data/defaultSprites';
 import { defaultDialogues, defaultCharacters, defaultItems } from '../data/defaultDialogues';
 import { defaultMaps } from '../data/defaultMap';
 import { imageTiles, isImageTile, ImageTile } from '../data/imageTiles';
 import { SpatialHash, SpatialEntity } from '../systems/SpatialHash';
-
-const STORAGE_KEY = 'rpg_game_state';
-const MODS_KEY = 'rpg_game_mods';
 
 const initialGameData: GameData = {
   version: '1.0.0',
@@ -44,7 +42,10 @@ function createInitialEngineState(gameData: GameData): EngineState {
     dialogueHistory: [],
     playtime: 0,
     savedAt: Date.now(),
+    gold: 0,
+    characterLevels: {},
     activeDialogueId: null,
+    isWalking: false,
     dialogueIndex: 0,
     displayedText: '',
     isTyping: false,
@@ -62,44 +63,38 @@ export const useGameEngine = () => {
   const lastMoveTime = useRef(0);
   const animationFrame = useRef(0);
 
-  // Dialogue typing effect — delegated to specialized hook
+  // Dialogue typing effect
   useDialogueManager(state, dispatch);
+
+  // Persistence
+  const { saveGame: persistSave, loadGame: persistLoad, hasSaveData: checkSaveData, getSaveSlots } = usePersistence();
 
   // Load saved state on mount
   useEffect(() => {
-    try {
-      let loadedData = initialGameData;
-      const savedMods = localStorage.getItem(MODS_KEY);
-      if (savedMods) {
-        loadedData = { ...initialGameData, ...JSON.parse(savedMods) };
-        dispatch({ type: 'UPDATE_GAME_DATA', data: loadedData });
-      }
-      const savedState = localStorage.getItem(STORAGE_KEY);
-      if (savedState) {
-        const parsed = JSON.parse(savedState);
-        dispatch({
-          type: 'LOAD_STATE',
-          payload: {
-            currentMapId: parsed.currentMapId,
-            playerPosition: parsed.playerPosition,
-            playerDirection: parsed.playerDirection,
-            flags: parsed.flags,
-            inventory: parsed.inventory,
-            dialogueHistory: parsed.dialogueHistory,
-            playtime: parsed.playtime,
-            savedAt: parsed.savedAt,
-          },
-        });
-      }
-    } catch (e) {
-      console.error('Failed to load game state:', e);
+    const saved = persistLoad(0);
+    if (saved) {
+      dispatch({
+        type: 'LOAD_STATE',
+        payload: {
+          currentMapId: saved.gameState.currentMapId,
+          playerPosition: saved.gameState.playerPosition,
+          playerDirection: saved.gameState.playerDirection,
+          flags: saved.gameState.flags,
+          inventory: saved.gameState.inventory,
+          dialogueHistory: saved.gameState.dialogueHistory,
+          playtime: saved.gameState.playtime,
+          savedAt: saved.gameState.savedAt,
+          gold: saved.gameState.gold || 0,
+          characterLevels: saved.gameState.characterLevels || {},
+        },
+      });
     }
-  }, []);
+  }, [persistLoad]);
 
-  // Auto-save every 10s
+  // Auto-save every 10s to slot 0
   useEffect(() => {
     const interval = setInterval(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      const gs: GameState = {
         currentMapId: state.currentMapId,
         playerPosition: state.playerPosition,
         playerDirection: state.playerDirection,
@@ -108,34 +103,30 @@ export const useGameEngine = () => {
         dialogueHistory: state.dialogueHistory,
         playtime: state.playtime,
         savedAt: Date.now(),
-      }));
+        characterLevels: state.characterLevels,
+        gold: state.gold,
+      };
+      persistSave(0, gs);
     }, 10000);
     return () => clearInterval(interval);
-  }, [state.currentMapId, state.playerPosition, state.playerDirection, state.flags, state.inventory, state.dialogueHistory, state.playtime]);
+  }, [state.currentMapId, state.playerPosition, state.playerDirection, state.flags, state.inventory, state.dialogueHistory, state.playtime, state.gold, state.characterLevels, persistSave]);
 
   const currentMap = state.gameData.maps[state.currentMapId];
 
   // ===== SPATIAL HASH =====
-  // Rebuild when map or NPC positions change
   const spatialHash = useMemo(() => {
     const hash = new SpatialHash(16);
     if (!currentMap) return hash;
-
-    // Insert NPCs
     for (const npcId of currentMap.npcs) {
       const npc = state.gameData.characters[npcId];
       if (npc) {
         hash.insert({ id: npcId, x: npc.position.x, y: npc.position.y, type: 'npc' });
       }
     }
-
     return hash;
   }, [currentMap?.id, currentMap?.npcs, state.gameData.characters]);
 
-  // Method to insert monsters into spatialHash (called by RPGGame when monsters are generated)
   const insertMonstersIntoHash = useCallback((monsters: Array<{ id: string; position: { x: number; y: number } }>) => {
-    // Remove old monsters
-    // Note: spatialHash is recreated on map change, so old monsters are automatically cleaned
     for (const monster of monsters) {
       spatialHash.insert({ id: monster.id, x: monster.position.x, y: monster.position.y, type: 'monster' });
     }
@@ -178,6 +169,11 @@ export const useGameEngine = () => {
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       keysPressed.current.delete(e.key.toLowerCase());
+      const movementKeys = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'];
+      const stillMoving = movementKeys.some(k => keysPressed.current.has(k));
+      if (!stillMoving) {
+        dispatch({ type: 'STOP_WALKING' });
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
@@ -230,7 +226,6 @@ export const useGameEngine = () => {
         const data = JSON.parse(e.target?.result as string);
         if (data.gameData) {
           dispatch({ type: 'UPDATE_GAME_DATA', data: { ...state.gameData, ...data.gameData } });
-          localStorage.setItem(MODS_KEY, JSON.stringify(data.gameData));
         }
       } catch (err) {
         console.error('Failed to import mod:', err);
@@ -241,12 +236,10 @@ export const useGameEngine = () => {
 
   const resetGame = useCallback(() => {
     dispatch({ type: 'RESET', initialState: createInitialEngineState(initialGameData) });
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(MODS_KEY);
   }, []);
 
-  const saveGame = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+  const saveGame = useCallback((slotId = 0) => {
+    const gs: GameState = {
       currentMapId: state.currentMapId,
       playerPosition: state.playerPosition,
       playerDirection: state.playerDirection,
@@ -255,8 +248,11 @@ export const useGameEngine = () => {
       dialogueHistory: state.dialogueHistory,
       playtime: state.playtime,
       savedAt: Date.now(),
-    }));
-  }, [state]);
+      characterLevels: state.characterLevels,
+      gold: state.gold,
+    };
+    persistSave(slotId, gs);
+  }, [state, persistSave]);
 
   const setGameData = useCallback((dataOrFn: GameData | ((prev: GameData) => GameData)) => {
     if (typeof dataOrFn === 'function') {
@@ -266,12 +262,50 @@ export const useGameEngine = () => {
     }
   }, [state.gameData]);
 
+  // Award exp to party after combat victory
+  const awardCombatRewards = useCallback((exp: number, gold: number, drops: string[]) => {
+    dispatch({ type: 'ADD_GOLD', amount: gold });
+    // Add drops to inventory
+    for (const itemId of drops) {
+      dispatch({ type: 'ADD_INVENTORY_ITEM', itemId });
+    }
+    // Award exp to all party members
+    const partyIds = ['matias', 'angel', 'alejandro', 'miguel', 'elias', 'maximo'];
+    for (const charId of partyIds) {
+      const char = state.gameData.characters[charId];
+      if (char) {
+        const newStats = awardExp(char.stats, Math.floor(exp / partyIds.length));
+        dispatch({ type: 'UPDATE_CHARACTER_STATS', characterId: charId, stats: newStats });
+      }
+    }
+  }, [state.gameData.characters]);
+
+  // Use item
+  const useItem = useCallback((itemId: string, targetId: string) => {
+    const item = state.gameData.items[itemId];
+    if (!item || !item.usable) return;
+    
+    const entry = state.inventory.find(e => e.itemId === itemId);
+    if (!entry || entry.quantity <= 0) return;
+
+    dispatch({ type: 'REMOVE_INVENTORY_ITEM', itemId });
+
+    // Apply item effects
+    if (item.useEffect === 'heal_50') {
+      const char = state.gameData.characters[targetId];
+      if (char) {
+        const newStats = { ...char.stats, hp: Math.min(char.stats.maxHp, char.stats.hp + 50) };
+        dispatch({ type: 'UPDATE_CHARACTER_STATS', characterId: targetId, stats: newStats });
+      }
+    }
+  }, [state.gameData.items, state.gameData.characters, state.inventory]);
+
   // Backwards-compatible dialogue object
   const activeDialogue: Dialogue | null = state.activeDialogueId
     ? state.gameData.dialogues[state.activeDialogueId] || null
     : null;
 
-  const gameState = {
+  const gameState: GameState = {
     currentMapId: state.currentMapId,
     playerPosition: state.playerPosition,
     playerDirection: state.playerDirection,
@@ -280,6 +314,8 @@ export const useGameEngine = () => {
     dialogueHistory: state.dialogueHistory,
     playtime: state.playtime,
     savedAt: state.savedAt,
+    characterLevels: state.characterLevels,
+    gold: state.gold,
   };
 
   return {
@@ -291,6 +327,7 @@ export const useGameEngine = () => {
     displayedText: state.displayedText,
     isTyping: state.isTyping,
     isPaused: state.isPaused,
+    isWalking: state.isWalking,
     showModMenu: state.showModMenu,
     setShowModMenu: (show: boolean) => dispatch({ type: 'SET_MOD_MENU', show }),
     movePlayer,
@@ -306,5 +343,8 @@ export const useGameEngine = () => {
     setGameData,
     spatialHash,
     insertMonstersIntoHash,
+    awardCombatRewards,
+    useItem,
+    dispatch,
   };
 };

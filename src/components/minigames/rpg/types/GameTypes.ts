@@ -24,12 +24,19 @@ export interface Character {
   isPlayer: boolean;
   dialogueIds: string[];
   stats: CharacterStats;
+  skillIds?: string[]; // Skill IDs this character knows
 }
 
 export interface CharacterStats {
   hp: number;
   maxHp: number;
   speed: number;
+  attack: number;
+  defense: number;
+  magic: number;
+  level: number;
+  exp: number;
+  expToNext: number;
 }
 
 export interface Dialogue {
@@ -83,7 +90,7 @@ export interface GameMap {
   ambience?: string;
   ambientTrack?: string;
   encounterRate?: number; // Chance of random encounter per step (0-1)
-  possibleEncounters?: string[]; // Monster IDs that can appear
+  possibleEncounters?: string[]; // Monster IDs from monsterRegistry
   events?: string[];
 }
 
@@ -92,10 +99,17 @@ export interface GameState {
   playerPosition: Position;
   playerDirection: 'up' | 'down' | 'left' | 'right';
   flags: Record<string, boolean>;
-  inventory: string[];
+  inventory: InventoryEntry[];
   dialogueHistory: string[];
   playtime: number; // In seconds
   savedAt: number; // Timestamp
+  characterLevels: Record<string, { level: number; exp: number }>; // persistent level data
+  gold: number;
+}
+
+export interface InventoryEntry {
+  itemId: string;
+  quantity: number;
 }
 
 export interface GameData {
@@ -143,7 +157,56 @@ export interface Mod {
   enabled: boolean;
 }
 
-export interface ModManager {
-  mods: Mod[];
-  activeMods: string[];
+// ============ LEVEL SYSTEM ============
+
+const EXP_BASE = 100;
+const EXP_GROWTH = 1.5;
+
+export function getExpToNextLevel(level: number): number {
+  return Math.floor(EXP_BASE * Math.pow(EXP_GROWTH, level - 1));
+}
+
+/** Award exp to a character, returns updated stats (may level up multiple times) */
+export function awardExp(stats: CharacterStats, expGained: number): CharacterStats {
+  let s = { ...stats, exp: stats.exp + expGained };
+  while (s.exp >= s.expToNext) {
+    s.exp -= s.expToNext;
+    s.level += 1;
+    s.expToNext = getExpToNextLevel(s.level);
+    // Stat gains per level
+    s.maxHp += 5 + Math.floor(s.level * 1.2);
+    s.hp = s.maxHp; // Full heal on level up
+    s.attack += 2;
+    s.defense += 1;
+    s.magic += 2;
+    s.speed += 1;
+  }
+  return s;
+}
+
+/** Get effective combat stats (base + level bonuses are already baked in) */
+export function getEffectiveStats(stats: CharacterStats) {
+  return {
+    hp: stats.hp,
+    maxHp: stats.maxHp,
+    attack: stats.attack,
+    defense: stats.defense,
+    magic: stats.magic,
+    speed: stats.speed,
+  };
+}
+
+export function createDefaultStats(overrides: Partial<CharacterStats> = {}): CharacterStats {
+  return {
+    hp: 100,
+    maxHp: 100,
+    speed: 3,
+    attack: 10,
+    defense: 5,
+    magic: 8,
+    level: 1,
+    exp: 0,
+    expToNext: getExpToNextLevel(1),
+    ...overrides,
+  };
 }

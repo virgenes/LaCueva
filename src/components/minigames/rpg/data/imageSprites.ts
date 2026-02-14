@@ -5,9 +5,7 @@
 // 3. Add it to the imageSprites object with its configuration
 
 // Import your sprite images here
-// Example:
-// import PlayerSprite from '@/assets/rpg/sprites/player.png';
-// import EnemySprite from '@/assets/rpg/sprites/enemy.png';
+import MatiasSpriteSheet from '@/assets/rpg/sprites/matias-spritesheet.png';
 
 // Sprite configuration type
 export interface ImageSprite {
@@ -55,22 +53,25 @@ export interface SpriteAnimation {
 // }
 
 export const imageSprites: Record<string, ImageSprite> = {
-  // Add your character sprites here!
-  // When you have sprite sheets, import and add them like this:
-  // 
-  // player_custom: {
-  //   id: 'player_custom',
-  //   name: 'Custom Player',
-  //   nameEs: 'Jugador Personalizado',
-  //   src: PlayerSpriteSheet,
-  //   frameWidth: 32,
-  //   frameHeight: 32,
-  //   animations: {
-  //     idle: { row: 0, frameCount: 4, speed: 200, loop: true },
-  //     walk: { row: 1, frameCount: 4, speed: 150, loop: true },
-  //   },
-  //   defaultAnimation: 'idle',
-  // },
+  matias_sheet: {
+    id: 'matias_sheet',
+    name: 'Matías',
+    nameEs: 'Matías',
+    src: MatiasSpriteSheet,
+    frameWidth: 32,
+    frameHeight: 32,
+    animations: {
+      idle_down:  { row: 0, frameCount: 1, speed: 200, loop: false },
+      idle_left:  { row: 1, frameCount: 1, speed: 200, loop: false },
+      idle_right: { row: 2, frameCount: 1, speed: 200, loop: false },
+      idle_up:    { row: 3, frameCount: 1, speed: 200, loop: false },
+      walk_down:  { row: 0, frameCount: 4, speed: 150, loop: true },
+      walk_left:  { row: 1, frameCount: 4, speed: 150, loop: true },
+      walk_right: { row: 2, frameCount: 4, speed: 150, loop: true },
+      walk_up:    { row: 3, frameCount: 4, speed: 150, loop: true },
+    },
+    defaultAnimation: 'idle_down',
+  },
 };
 
 // Helper function to check if a sprite ID is an image sprite
@@ -85,8 +86,11 @@ export const getImageSpriteIds = (): string[] => {
 
 // Sprite categories for organization
 export const spriteCategories = {
-  player: [] as string[],
+  player: ['matias_sheet'] as string[],
   npc: [] as string[],
   enemy: [] as string[],
   object: [] as string[],
 };
+
+// The active player sprite sheet ID
+export const PLAYER_SPRITE_SHEET_ID = 'matias_sheet';

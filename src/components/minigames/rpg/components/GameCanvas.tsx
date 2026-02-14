@@ -3,6 +3,7 @@ import { SpriteRenderer } from './SpriteRenderer';
 import { GameData, GameState, GameMap, Position } from '../types/GameTypes';
 import { imageTiles, isImageTile, isObjectTile, getGroundTileFor } from '../data/imageTiles';
 import { SpatialHash } from '../systems/SpatialHash';
+import { imageSprites, PLAYER_SPRITE_SHEET_ID } from '../data/imageSprites';
 
 interface GameCanvasProps {
   gameData: GameData;
@@ -13,6 +14,7 @@ interface GameCanvasProps {
   onMonsterEncounter?: (monster: MapMonster) => void;
   spatialHash?: SpatialHash;
   isMobile?: boolean;
+  isWalking?: boolean;
 }
 
 export interface MapMonster {
@@ -31,6 +33,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
   onMonsterEncounter,
   spatialHash,
   isMobile = false,
+  isWalking = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -213,11 +216,60 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     }).filter(Boolean);
   }, [currentMap.npcs, gameData.characters, gameData.sprites, cameraOffset, tileSize, pixelSize, viewportTiles, spatialHash]);
 
-  // Player
-  const playerSprite = gameData.sprites['player'];
+  // Player sprite sheet
+  const playerSpriteSheet = imageSprites[PLAYER_SPRITE_SHEET_ID];
   const playerScreenX = gameState.playerPosition.x - cameraOffset.x;
   const playerScreenY = gameState.playerPosition.y - cameraOffset.y;
-  const playerFrame = playerSprite?.frames[0];
+
+  // Sprite sheet animation state
+  const [playerFrame, setPlayerFrame] = useState(0);
+  const playerDir = gameState.playerDirection;
+
+  useEffect(() => {
+    if (!isWalking || !playerSpriteSheet) {
+      setPlayerFrame(0);
+      return;
+    }
+    const animKey = `walk_${playerDir}`;
+    const anim = playerSpriteSheet.animations[animKey];
+    if (!anim) return;
+
+    const interval = setInterval(() => {
+      setPlayerFrame(prev => (prev + 1) % anim.frameCount);
+    }, anim.speed);
+    return () => clearInterval(interval);
+  }, [isWalking, playerDir, playerSpriteSheet]);
+
+  // Compute background-position for the sprite sheet
+  const playerSpriteStyle = useMemo(() => {
+    if (!playerSpriteSheet) return null;
+    const animKey = isWalking ? `walk_${playerDir}` : `idle_${playerDir}`;
+    const anim = playerSpriteSheet.animations[animKey];
+    if (!anim) return null;
+
+    const frameX = -(playerFrame * playerSpriteSheet.frameWidth);
+    const frameY = -(anim.row * playerSpriteSheet.frameHeight);
+    // Scale: we want the sprite to fill tileSize
+    const scaleX = tileSize / playerSpriteSheet.frameWidth;
+    const scaleY = tileSize / playerSpriteSheet.frameHeight;
+    // The total sheet width/height scaled
+    const sheetCols = 4; // 4 frames per row
+    const sheetRows = 4; // 4 directions
+    const bgWidth = playerSpriteSheet.frameWidth * sheetCols * scaleX;
+    const bgHeight = playerSpriteSheet.frameHeight * sheetRows * scaleY;
+
+    return {
+      backgroundImage: `url(${playerSpriteSheet.src})`,
+      backgroundPosition: `${frameX * scaleX}px ${frameY * scaleY}px`,
+      backgroundSize: `${bgWidth}px ${bgHeight}px`,
+      backgroundRepeat: 'no-repeat' as const,
+      imageRendering: 'pixelated' as const,
+    };
+  }, [playerSpriteSheet, playerDir, isWalking, playerFrame, tileSize]);
+
+  // Fallback: old pixel-art sprite
+  const fallbackPlayerSprite = gameData.sprites['player'];
+  const fallbackPlayerFrame = fallbackPlayerSprite?.frames[0];
 
   return (
     <div ref={containerRef}
@@ -231,16 +283,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
       {renderedMonsters}
       {renderedNpcs}
 
-      {playerSprite && playerFrame && (
+      {/* Player rendered with sprite sheet */}
+      {playerSpriteStyle ? (
+        <div
+          className="absolute"
+          style={{
+            left: playerScreenX * tileSize,
+            top: playerScreenY * tileSize,
+            width: tileSize,
+            height: tileSize,
+            zIndex: 20 + gameState.playerPosition.y,
+            ...playerSpriteStyle,
+          }}
+        />
+      ) : fallbackPlayerSprite && fallbackPlayerFrame ? (
         <div className="absolute transition-all duration-100"
           style={{
             left: playerScreenX * tileSize, top: playerScreenY * tileSize,
             width: tileSize, height: tileSize, zIndex: 20 + gameState.playerPosition.y,
             transform: gameState.playerDirection === 'left' ? 'scaleX(-1)' : 'scaleX(1)',
           }}>
-          <SpriteRenderer sprite={playerFrame} size={pixelSize} />
+          <SpriteRenderer sprite={fallbackPlayerFrame} size={pixelSize} />
         </div>
-      )}
+      ) : null}
 
       {/* Ambient lighting */}
       <div className="absolute inset-0 pointer-events-none"

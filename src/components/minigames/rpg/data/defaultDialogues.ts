@@ -1,4 +1,4 @@
-import { Dialogue, Character, GameItem } from '../types/GameTypes';
+import { Dialogue, Character, GameItem, createDefaultStats } from '../types/GameTypes';
 import { prologueDialogues } from './prologueDialogues';
 import { protagonistCharacters } from './protagonistSprites';
 
@@ -199,11 +199,8 @@ export const defaultCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: true,
     dialogueIds: [],
-    stats: {
-      hp: 100,
-      maxHp: 100,
-      speed: 4,
-    },
+    stats: createDefaultStats({ hp: 100, maxHp: 100, speed: 4 }),
+    skillIds: ['basic_attack', 'defend', 'heal'],
   },
 
   mysterious: {
@@ -215,11 +212,7 @@ export const defaultCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: ['mysterious_intro'],
-    stats: {
-      hp: 999,
-      maxHp: 999,
-      speed: 0,
-    },
+    stats: createDefaultStats({ hp: 999, maxHp: 999, speed: 0, attack: 50, defense: 50, magic: 50 }),
   },
 
   narrator: {
@@ -231,11 +224,7 @@ export const defaultCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: [],
-    stats: {
-      hp: 0,
-      maxHp: 0,
-      speed: 0,
-    },
+    stats: createDefaultStats({ hp: 0, maxHp: 0, speed: 0, attack: 0, defense: 0, magic: 0 }),
   },
 
   // Include all protagonist characters

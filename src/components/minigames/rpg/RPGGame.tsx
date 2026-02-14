@@ -13,7 +13,7 @@ import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { teleporterConnections } from './data/defaultMap';
-import { generateMapMonsters, monsterDefinitions, overworldMonsterSprites } from './data/mapMonsters';
+import { generateMapMonsters, monsterRegistry } from './data/monsters';
 
 interface RPGGameProps {
   onClose: () => void;
@@ -43,6 +43,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     displayedText,
     isTyping,
     isPaused,
+    isWalking,
     showModMenu,
     setShowModMenu,
     movePlayer,
@@ -56,6 +57,8 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     setGameData,
     spatialHash,
     insertMonstersIntoHash,
+    awardCombatRewards,
+    useItem,
   } = useGameEngine();
 
   // Check for save data
@@ -106,21 +109,14 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
 
   // Handle monster encounter
   const handleMonsterEncounter = useCallback((monster: MapMonster) => {
-    const definition = monsterDefinitions[monster.monsterId];
-    if (!definition) return;
+    const def = monsterRegistry[monster.monsterId];
+    if (!def) return;
     
-    if (definition.hostile) {
-      // Start combat with this monster
+    if (def.hostile) {
       playClick();
       setCombatEnemies([monster.monsterId]);
-      
-      // Remove the encountered monster from the map
       setMapMonsters(prev => prev.filter(m => m.id !== monster.id));
-      
       setGameMode('combat');
-    } else {
-      // Friendly animal - could show a cute interaction
-      console.log('Friendly animal:', definition.name);
     }
   }, [playClick]);
 
@@ -135,7 +131,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
       // Random chance for encounter on each move
       if (Math.random() < encounterRate * 0.5) { // Lower rate for random
         const hostileMonsters = possibleEncounters.filter(
-          id => monsterDefinitions[id]?.hostile
+          id => monsterRegistry[id]?.hostile
         );
         
         if (hostileMonsters.length > 0) {
@@ -253,7 +249,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                   <div className="flex items-center gap-1 px-2 py-1 bg-red-500/20 rounded border border-red-500/50">
                     <Swords size={12} className="text-red-400" />
                     <span className="font-pixel text-[8px] text-red-400">
-                      {mapMonsters.filter(m => monsterDefinitions[m.monsterId]?.hostile).length}
+                      {mapMonsters.filter(m => monsterRegistry[m.monsterId]?.hostile).length}
                     </span>
                   </div>
                 )}
@@ -302,6 +298,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                 onMonsterEncounter={handleMonsterEncounter}
                 spatialHash={spatialHash}
                 isMobile={isMobile}
+                isWalking={isWalking}
               />
 
               {/* Dialogue overlay */}
@@ -335,6 +332,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                   gameData={gameData}
                   party={partyCharacters}
                   onClose={() => setShowGameMenu(false)}
+                  onUseItem={useItem}
                 />
               )}
 
@@ -388,8 +386,8 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
             <CombatSystem
               playerParty={partyCharacters}
               enemies={combatEnemies}
-              onVictory={(exp, gold) => {
-                console.log('Victory!', exp, gold);
+              onVictory={(exp, gold, items) => {
+                awardCombatRewards(exp, gold, items);
                 setGameMode('playing');
               }}
               onDefeat={() => {

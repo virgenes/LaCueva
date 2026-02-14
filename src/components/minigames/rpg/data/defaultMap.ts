@@ -256,7 +256,7 @@ export const forestMap: GameMap = {
     },
   ],
   encounterRate: 0.08,
-  possibleEncounters: ['wolf', 'sprite', 'mushroom', 'deer', 'rabbit', 'void_guardian'],
+  possibleEncounters: ['wolf', 'sprite', 'mushroom', 'deer', 'rabbit'],
   events: [],
 };
 
@@ -374,7 +374,7 @@ export const caveMap: GameMap = {
     },
   ],
   encounterRate: 0.1,
-  possibleEncounters: ['bat', 'golem', 'ghost', 'slime', 'memory_wraith'],
+  possibleEncounters: ['bat', 'golem', 'ghost', 'slime'],
   events: [],
 };
 

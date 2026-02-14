@@ -9,7 +9,6 @@ import {
   CombatAction,
   Skill,
   defaultSkills,
-  defaultEnemies,
 } from '../types/CombatTypes';
 import { Character } from '../types/GameTypes';
 
@@ -85,7 +84,7 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
     if (combatState.phase === 'victory') {
       const timer = setTimeout(() => {
         const rewards = CombatEngine.getRewards(enemies);
-        onVictory(rewards.exp, rewards.gold, []);
+        onVictory(rewards.exp, rewards.gold, rewards.drops);
       }, 2000);
       return () => clearTimeout(timer);
     } else if (combatState.phase === 'defeat') {

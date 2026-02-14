@@ -1,7 +1,7 @@
 // usePersistence — Multi-slot save system with versioning and migrations
 
 import { useCallback } from 'react';
-import { GameState } from '../types/GameTypes';
+import { GameState, InventoryEntry } from '../types/GameTypes';
 
 const SAVE_VERSION = '2.0.0';
 const SAVE_PREFIX = 'rpg_save_v2_slot_';
@@ -25,10 +25,14 @@ const migrations: Record<string, (data: any) => any> = {
         playerPosition: data.playerPosition || { x: 25, y: 20 },
         playerDirection: data.playerDirection || 'down',
         flags: data.flags || {},
-        inventory: data.inventory || [],
+        inventory: Array.isArray(data.inventory)
+          ? data.inventory.map((i: any) => typeof i === 'string' ? { itemId: i, quantity: 1 } : i)
+          : [],
         dialogueHistory: data.dialogueHistory || [],
         playtime: data.playtime || 0,
         savedAt: data.savedAt || Date.now(),
+        characterLevels: data.characterLevels || {},
+        gold: data.gold || 0,
       },
       modsEnabled: [],
       savedAt: data.savedAt || Date.now(),

@@ -1,4 +1,4 @@
-import { Sprite, Character } from '../types/GameTypes';
+import { Sprite, Character, createDefaultStats } from '../types/GameTypes';
 
 // Color palette for protagonists
 const COLORS = {
@@ -233,7 +233,8 @@ export const protagonistCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: ['matias_intro'],
-    stats: { hp: 100, maxHp: 100, speed: 3 },
+    stats: createDefaultStats({ hp: 100, maxHp: 100, speed: 3, attack: 12, defense: 6, magic: 10 }),
+    skillIds: ['basic_attack', 'defend', 'heal', 'fire_bolt'],
   },
   angel: {
     id: 'angel',
@@ -244,7 +245,8 @@ export const protagonistCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: ['angel_intro'],
-    stats: { hp: 85, maxHp: 85, speed: 4 },
+    stats: createDefaultStats({ hp: 85, maxHp: 85, speed: 6, attack: 15, defense: 4, magic: 8 }),
+    skillIds: ['basic_attack', 'defend', 'focus'],
   },
   alejandro: {
     id: 'alejandro',
@@ -255,7 +257,8 @@ export const protagonistCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: ['alejandro_intro'],
-    stats: { hp: 120, maxHp: 120, speed: 2 },
+    stats: createDefaultStats({ hp: 120, maxHp: 120, speed: 2, attack: 10, defense: 12, magic: 6 }),
+    skillIds: ['basic_attack', 'defend'],
   },
   miguel: {
     id: 'miguel',
@@ -266,7 +269,8 @@ export const protagonistCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: ['miguel_intro'],
-    stats: { hp: 90, maxHp: 90, speed: 5 },
+    stats: createDefaultStats({ hp: 90, maxHp: 90, speed: 5, attack: 11, defense: 5, magic: 14 }),
+    skillIds: ['basic_attack', 'heal', 'thunder_strike'],
   },
   elias: {
     id: 'elias',
@@ -277,7 +281,8 @@ export const protagonistCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: ['elias_intro'],
-    stats: { hp: 110, maxHp: 110, speed: 3 },
+    stats: createDefaultStats({ hp: 110, maxHp: 110, speed: 3, attack: 13, defense: 8, magic: 7 }),
+    skillIds: ['basic_attack', 'defend', 'focus'],
   },
   maximo: {
     id: 'maximo',
@@ -288,7 +293,8 @@ export const protagonistCharacters: Record<string, Character> = {
     direction: 'down',
     isPlayer: false,
     dialogueIds: ['maximo_intro'],
-    stats: { hp: 95, maxHp: 95, speed: 4 },
+    stats: createDefaultStats({ hp: 95, maxHp: 95, speed: 4, attack: 10, defense: 6, magic: 12 }),
+    skillIds: ['basic_attack', 'defend', 'heal', 'fire_bolt'],
   },
 };
 

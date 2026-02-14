@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Users, Package, BarChart3, Heart, Sword, Shield, Zap } from 'lucide-react';
+import { X, User, Users, Package, BarChart3, Heart, Sword, Shield, Zap, Star, Coins } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { GameState, GameData, Character, GameItem } from '../types/GameTypes';
-import { SpriteRenderer } from './SpriteRenderer';
 
 interface GameMenuProps {
   gameState: GameState;
@@ -36,43 +35,14 @@ export const GameMenu: React.FC<GameMenuProps> = ({
 
   const selectedChar = party.find(c => c.id === selectedCharacter);
 
-  // Mock inventory items for demonstration
-  const inventoryItems: (GameItem & { quantity: number })[] = [
-    {
-      ...gameData.items.memory_fragment || {
-        id: 'memory_fragment',
-        name: 'Memory Fragment',
-        nameEs: 'Fragmento de Memoria',
-        description: 'A glowing shard of crystallized memory.',
-        descriptionEs: 'Un fragmento brillante de memoria cristalizada.',
-        spriteId: 'item_fragment',
-        usable: true,
-        useEffect: 'reveal_truth',
-      },
-      quantity: 3,
-    },
-    {
-      id: 'healing_potion',
-      name: 'Healing Potion',
-      nameEs: 'Poción Curativa',
-      description: 'Restores 50 HP.',
-      descriptionEs: 'Restaura 50 HP.',
-      spriteId: 'item_potion',
-      usable: true,
-      useEffect: 'heal_50',
-      quantity: 5,
-    },
-    {
-      id: 'old_key',
-      name: 'Old Key',
-      nameEs: 'Llave Vieja',
-      description: 'A rusty key. It might open something.',
-      descriptionEs: 'Una llave oxidada. Podría abrir algo.',
-      spriteId: 'item_key',
-      usable: false,
-      quantity: 1,
-    },
-  ];
+  // Real inventory from gameState
+  const inventoryItems = gameState.inventory
+    .map(entry => {
+      const item = gameData.items[entry.itemId];
+      if (!item) return null;
+      return { ...item, quantity: entry.quantity };
+    })
+    .filter(Boolean) as (GameItem & { quantity: number })[];
 
   const getStatBar = (current: number, max: number, color: string) => {
     const percentage = Math.min(100, (current / max) * 100);
@@ -96,9 +66,14 @@ export const GameMenu: React.FC<GameMenuProps> = ({
     >
       {/* Header */}
       <div className="flex items-center justify-between p-2 border-b border-pixel-border bg-card/50">
-        <h2 className="font-pixel text-sm text-neon-cyan">
-          {isSpanish ? 'MENÚ' : 'MENU'}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-pixel text-sm text-neon-cyan">
+            {isSpanish ? 'MENÚ' : 'MENU'}
+          </h2>
+          <div className="flex items-center gap-1 font-pixel text-[8px] text-star-gold">
+            <Coins size={10} /> {gameState.gold || 0}G
+          </div>
+        </div>
         <button
           onClick={onClose}
           className="p-1 hover:bg-neon-pink/20 rounded-sm transition-colors"
@@ -136,7 +111,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
               exit={{ opacity: 0, x: 20 }}
               className="space-y-3"
             >
-              {/* Character selector */}
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {party.map(char => (
                   <button
@@ -154,7 +128,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                 ))}
               </div>
 
-              {/* Character details */}
               <div className="bg-card/50 border border-pixel-border rounded-sm p-3">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 bg-muted rounded-sm flex items-center justify-center">
@@ -164,13 +137,13 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                     <h3 className="font-pixel text-sm text-foreground">
                       {isSpanish ? selectedChar.nameEs : selectedChar.name}
                     </h3>
-                    <p className="font-retro text-[8px] text-muted-foreground">
-                      {isSpanish ? 'Protagonista' : 'Protagonist'}
+                    <p className="font-retro text-[8px] text-muted-foreground flex items-center gap-1">
+                      <Star size={8} className="text-star-gold" />
+                      Lv.{selectedChar.stats.level} | EXP: {selectedChar.stats.exp}/{selectedChar.stats.expToNext}
                     </p>
                   </div>
                 </div>
 
-                {/* Stats bars */}
                 <div className="space-y-2">
                   <div>
                     <div className="flex items-center justify-between mb-1">
@@ -183,27 +156,33 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                     </div>
                     {getStatBar(selectedChar.stats.hp, selectedChar.stats.maxHp, 'bg-red-500')}
                   </div>
-
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="flex items-center gap-1 font-retro text-[8px] text-foreground">
                         <Sword size={10} className="text-orange-500" /> ATK
                       </span>
-                      <span className="font-pixel text-[8px]">15</span>
+                      <span className="font-pixel text-[8px]">{selectedChar.stats.attack}</span>
                     </div>
-                    {getStatBar(15, 50, 'bg-orange-500')}
+                    {getStatBar(selectedChar.stats.attack, 50, 'bg-orange-500')}
                   </div>
-
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="flex items-center gap-1 font-retro text-[8px] text-foreground">
                         <Shield size={10} className="text-blue-500" /> DEF
                       </span>
-                      <span className="font-pixel text-[8px]">10</span>
+                      <span className="font-pixel text-[8px]">{selectedChar.stats.defense}</span>
                     </div>
-                    {getStatBar(10, 50, 'bg-blue-500')}
+                    {getStatBar(selectedChar.stats.defense, 50, 'bg-blue-500')}
                   </div>
-
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="flex items-center gap-1 font-retro text-[8px] text-foreground">
+                        <Zap size={10} className="text-purple-500" /> MAG
+                      </span>
+                      <span className="font-pixel text-[8px]">{selectedChar.stats.magic}</span>
+                    </div>
+                    {getStatBar(selectedChar.stats.magic, 50, 'bg-purple-500')}
+                  </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="flex items-center gap-1 font-retro text-[8px] text-foreground">
@@ -211,12 +190,11 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                       </span>
                       <span className="font-pixel text-[8px]">{selectedChar.stats.speed}</span>
                     </div>
-                    {getStatBar(selectedChar.stats.speed, 10, 'bg-yellow-500')}
+                    {getStatBar(selectedChar.stats.speed, 20, 'bg-yellow-500')}
                   </div>
                 </div>
               </div>
 
-              {/* Play time */}
               <div className="text-center font-retro text-[8px] text-muted-foreground">
                 {isSpanish ? 'Tiempo de juego: ' : 'Play time: '}
                 {Math.floor(gameState.playtime / 60)}:{String(gameState.playtime % 60).padStart(2, '0')}
@@ -233,12 +211,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
               exit={{ opacity: 0, x: 20 }}
               className="space-y-2"
             >
-              <p className="font-retro text-[8px] text-muted-foreground mb-2">
-                {isSpanish 
-                  ? 'Tu grupo actual de personajes.' 
-                  : 'Your current party members.'}
-              </p>
-              
               {party.map((char, index) => (
                 <motion.div
                   key={char.id}
@@ -253,6 +225,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                   <div className="flex-1">
                     <h4 className="font-pixel text-[9px] text-foreground">
                       {isSpanish ? char.nameEs : char.name}
+                      <span className="ml-1 text-star-gold">Lv.{char.stats.level}</span>
                     </h4>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -265,9 +238,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                         {char.stats.hp}/{char.stats.maxHp}
                       </span>
                     </div>
-                  </div>
-                  <div className="text-[8px] font-pixel text-star-gold">
-                    #{index + 1}
                   </div>
                 </motion.div>
               ))}
@@ -283,12 +253,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
               exit={{ opacity: 0, x: 20 }}
               className="space-y-2"
             >
-              <p className="font-retro text-[8px] text-muted-foreground mb-2">
-                {isSpanish 
-                  ? 'Tus objetos recolectados.' 
-                  : 'Your collected items.'}
-              </p>
-
               <div className="grid grid-cols-2 gap-2">
                 {inventoryItems.map((item, index) => (
                   <motion.button
@@ -319,7 +283,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
                 ))}
               </div>
 
-              {/* Selected item details */}
               <AnimatePresence>
                 {selectedItem && (
                   <motion.div

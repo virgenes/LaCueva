@@ -8,46 +8,60 @@ import {
   CombatLogEntry,
   Skill,
   defaultSkills,
-  defaultEnemies,
   TimelineEntry,
+  CombatAnimation,
 } from '../types/CombatTypes';
-import { Character } from '../types/GameTypes';
+import { Character, getEffectiveStats } from '../types/GameTypes';
+import { monsterRegistry } from '../data/monsters';
 
 export class CombatEngine {
-  /** Initialize combat state from party and enemy IDs */
+  /** Initialize combat state from party and enemy IDs (uses monsterRegistry) */
   static start(
     playerParty: Character[],
     enemyIds: string[],
     isSpanish: boolean
   ): CombatState {
-    const players: CombatCharacter[] = playerParty.map((char, i) => ({
-      id: char.id,
-      name: isSpanish ? char.nameEs : char.name,
-      nameEs: char.nameEs,
-      stats: {
-        hp: char.stats.hp,
-        maxHp: char.stats.maxHp,
-        attack: 10 + i * 2,
-        defense: 5 + i,
-        speed: char.stats.speed,
-        magic: 8 + i * 2,
-      },
-      skills: [defaultSkills.basic_attack, defaultSkills.defend, defaultSkills.heal],
-      sprite: [],
-      position: { x: 50, y: 150 + i * 60 },
-      statusEffects: [],
-      isDefending: false,
-    }));
+    const players: CombatCharacter[] = playerParty.map((char) => {
+      const effective = getEffectiveStats(char.stats);
+      const skills = (char.skillIds || ['basic_attack', 'defend', 'heal'])
+        .map(id => defaultSkills[id])
+        .filter(Boolean);
+      return {
+        id: char.id,
+        name: isSpanish ? char.nameEs : char.name,
+        nameEs: char.nameEs,
+        stats: { ...effective, magic: effective.magic },
+        skills,
+        sprite: [],
+        position: { x: 50, y: 150 },
+        statusEffects: [],
+        isDefending: false,
+      };
+    });
 
     const enemies: CombatCharacter[] = enemyIds.map((id, i) => {
-      const enemy = defaultEnemies[id] || defaultEnemies.shadow_slime;
+      const def = monsterRegistry[id];
+      if (!def) {
+        // fallback
+        return {
+          id: `${id}_${i}`,
+          name: id,
+          nameEs: id,
+          stats: { hp: 20, maxHp: 20, attack: 5, defense: 2, speed: 3, magic: 2 },
+          skills: [defaultSkills.basic_attack],
+          sprite: [],
+          position: { x: 250, y: 120 + i * 70 },
+          statusEffects: [],
+          isDefending: false,
+        };
+      }
       return {
         id: `${id}_${i}`,
-        name: isSpanish ? enemy.nameEs : enemy.name,
-        nameEs: enemy.nameEs,
-        stats: { ...enemy.stats },
-        skills: enemy.skills.map(s => defaultSkills[s]).filter(Boolean),
-        sprite: enemy.sprite,
+        name: isSpanish ? def.nameEs : def.name,
+        nameEs: def.nameEs,
+        stats: { ...def.stats },
+        skills: def.skills.map(s => defaultSkills[s]).filter(Boolean),
+        sprite: def.combatSprite,
         position: { x: 250, y: 120 + i * 70 },
         statusEffects: [],
         isDefending: false,
@@ -90,12 +104,13 @@ export class CombatEngine {
     }));
   }
 
-  /** Process a combat action and return new state */
+  /** Process a combat action and return new state + animations */
   static act(state: CombatState, action: CombatAction, isSpanish: boolean): CombatState {
     const newState: CombatState = {
       ...state,
       playerParty: state.playerParty.map(p => ({ ...p, stats: { ...p.stats } })),
       enemyParty: state.enemyParty.map(e => ({ ...e, stats: { ...e.stats } })),
+      animations: [],
     };
 
     const allChars = [...newState.playerParty, ...newState.enemyParty];
@@ -123,15 +138,41 @@ export class CombatEngine {
             ? actor.stats.magic + skill.power
             : actor.stats.attack + skill.power;
           const def = target.isDefending ? target.stats.defense * 2 : target.stats.defense;
-          const damage = Math.max(1, Math.floor(baseDmg - def * 0.5));
+          const variance = 0.9 + Math.random() * 0.2; // ±10% damage variance
+          const damage = Math.max(1, Math.floor((baseDmg - def * 0.5) * variance));
           target.stats.hp = Math.max(0, target.stats.hp - damage);
           log.damage = damage;
           log.target = target.name;
+
+          // Add damage animation
+          newState.animations.push({
+            id: `dmg_${Date.now()}_${target.id}`,
+            type: target.stats.hp <= 0 ? 'death' : 'damage',
+            targetId: target.id,
+            duration: 500,
+            startTime: Date.now(),
+            data: { damage },
+          });
         } else if (skill.type === 'heal') {
           const heal = skill.power + Math.floor(actor.stats.magic * 0.5);
           target.stats.hp = Math.min(target.stats.maxHp, target.stats.hp + heal);
           log.heal = heal;
           log.target = target.name;
+
+          newState.animations.push({
+            id: `heal_${Date.now()}_${target.id}`,
+            type: 'heal',
+            targetId: target.id,
+            duration: 500,
+            startTime: Date.now(),
+            data: { heal },
+          });
+        }
+
+        // Apply status effect
+        if (skill.statusEffect && target.stats.hp > 0) {
+          target.statusEffects = [...target.statusEffects, { ...skill.statusEffect }];
+          log.effect = isSpanish ? skill.statusEffect.nameEs : skill.statusEffect.name;
         }
       }
       log.action = isSpanish ? skill.nameEs : skill.name;
@@ -150,6 +191,9 @@ export class CombatEngine {
 
     newState.combatLog = [...state.combatLog, log];
 
+    // Process status effects (poison, burn, etc.)
+    CombatEngine.processStatusEffects(newState, isSpanish);
+
     // Check win/lose
     if (newState.enemyParty.every(e => e.stats.hp <= 0)) {
       newState.phase = 'victory';
@@ -160,29 +204,79 @@ export class CombatEngine {
       return newState;
     }
 
-    // Advance turn
     return CombatEngine.advanceTurn(newState);
+  }
+
+  /** Process status effects at end of turn */
+  private static processStatusEffects(state: CombatState, isSpanish: boolean) {
+    const allChars = [...state.playerParty, ...state.enemyParty];
+    for (const char of allChars) {
+      if (char.stats.hp <= 0) continue;
+      const remaining: typeof char.statusEffects = [];
+      for (const effect of char.statusEffects) {
+        if (effect.type === 'poison' || effect.type === 'burn') {
+          const tick = effect.power;
+          char.stats.hp = Math.max(0, char.stats.hp - tick);
+          state.combatLog.push({
+            turn: state.turn,
+            actorName: char.name,
+            action: `${isSpanish ? effect.nameEs : effect.name} (-${tick} HP)`,
+            damage: tick,
+            timestamp: Date.now(),
+          });
+        }
+        const copy = { ...effect, duration: effect.duration - 1 };
+        if (copy.duration > 0) remaining.push(copy);
+      }
+      char.statusEffects = remaining;
+    }
   }
 
   /** Get enemy AI action */
   static getEnemyAction(state: CombatState, enemyId: string): CombatAction {
+    const enemy = state.enemyParty.find(e => e.id === enemyId);
     const alivePlayers = state.playerParty.filter(p => p.stats.hp > 0);
-    if (alivePlayers.length === 0) {
+    if (alivePlayers.length === 0 || !enemy) {
       return { type: 'defend', actorId: enemyId };
     }
+
+    // Use available skills sometimes
+    if (enemy.skills.length > 1 && Math.random() < 0.4) {
+      const skill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
+      if (skill.type === 'heal' && enemy.stats.hp < enemy.stats.maxHp * 0.5) {
+        return { type: 'skill', actorId: enemyId, targetId: enemyId, skillId: skill.id };
+      }
+      if (skill.type !== 'heal') {
+        const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+        return { type: 'skill', actorId: enemyId, targetId: target.id, skillId: skill.id };
+      }
+    }
+
     const target = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
     return { type: 'attack', actorId: enemyId, targetId: target.id, skillId: 'basic_attack' };
   }
 
-  /** Calculate total rewards */
-  static getRewards(enemyIds: string[]): { exp: number; gold: number } {
-    return enemyIds.reduce(
-      (sum, id) => ({
-        exp: sum.exp + (defaultEnemies[id]?.exp || 10),
-        gold: sum.gold + (defaultEnemies[id]?.gold || 5),
-      }),
+  /** Calculate total rewards from monsterRegistry */
+  static getRewards(enemyIds: string[]): { exp: number; gold: number; drops: string[] } {
+    const drops: string[] = [];
+    const result = enemyIds.reduce(
+      (sum, id) => {
+        const def = monsterRegistry[id];
+        if (!def) return sum;
+        // Roll for drops
+        for (const drop of def.drops) {
+          if (Math.random() < drop.chance) {
+            drops.push(drop.itemId);
+          }
+        }
+        return {
+          exp: sum.exp + def.exp,
+          gold: sum.gold + def.gold,
+        };
+      },
       { exp: 0, gold: 0 }
     );
+    return { ...result, drops };
   }
 
   // ===== PRIVATE HELPERS =====
@@ -206,7 +300,6 @@ export class CombatEngine {
   }
 
   private static advanceTurn(state: CombatState): CombatState {
-    // Remove dead from timeline
     const timeline = state.timeline.filter(t => {
       const char = [...state.playerParty, ...state.enemyParty].find(c => c.id === t.characterId);
       return char && char.stats.hp > 0;
