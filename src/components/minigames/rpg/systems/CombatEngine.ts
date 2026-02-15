@@ -13,6 +13,10 @@ import {
 } from '../types/CombatTypes';
 import { Character, getEffectiveStats } from '../types/GameTypes';
 import { monsterRegistry } from '../data/monsters';
+import { classSkills } from '../data/heroClasses';
+
+// Merge all available skills
+const allSkills: Record<string, Skill> = { ...defaultSkills, ...classSkills };
 
 export class CombatEngine {
   /** Initialize combat state from party and enemy IDs (uses monsterRegistry) */
@@ -24,7 +28,7 @@ export class CombatEngine {
     const players: CombatCharacter[] = playerParty.map((char) => {
       const effective = getEffectiveStats(char.stats);
       const skills = (char.skillIds || ['basic_attack', 'defend', 'heal'])
-        .map(id => defaultSkills[id])
+        .map(id => allSkills[id])
         .filter(Boolean);
       return {
         id: char.id,
@@ -60,7 +64,7 @@ export class CombatEngine {
         name: isSpanish ? def.nameEs : def.name,
         nameEs: def.nameEs,
         stats: { ...def.stats },
-        skills: def.skills.map(s => defaultSkills[s]).filter(Boolean),
+        skills: def.skills.map(s => allSkills[s]).filter(Boolean),
         sprite: def.combatSprite,
         position: { x: 250, y: 120 + i * 70 },
         statusEffects: [],
@@ -125,7 +129,7 @@ export class CombatEngine {
     };
 
     if (action.type === 'attack' || action.type === 'skill') {
-      const skill = action.skillId ? defaultSkills[action.skillId] : defaultSkills.basic_attack;
+      const skill = action.skillId ? allSkills[action.skillId] : allSkills.basic_attack;
       if (!skill) return state;
 
       const targets = CombatEngine.resolveTargets(newState, action, skill);

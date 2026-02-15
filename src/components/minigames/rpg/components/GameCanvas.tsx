@@ -15,6 +15,7 @@ interface GameCanvasProps {
   spatialHash?: SpatialHash;
   isMobile?: boolean;
   isWalking?: boolean;
+  selectedCharacterId?: string;
 }
 
 export interface MapMonster {
@@ -34,6 +35,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
   spatialHash,
   isMobile = false,
   isWalking = false,
+  selectedCharacterId,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -247,18 +249,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     const anim = playerSpriteSheet.animations[animKey];
     if (!anim) return null;
 
+    // Make player sprite larger (1.5x tile size) for visual presence
+    const playerScale = 1.5;
+    const renderSize = tileSize * playerScale;
     const frameX = -(playerFrame * playerSpriteSheet.frameWidth);
     const frameY = -(anim.row * playerSpriteSheet.frameHeight);
-    // Scale: we want the sprite to fill tileSize
-    const scaleX = tileSize / playerSpriteSheet.frameWidth;
-    const scaleY = tileSize / playerSpriteSheet.frameHeight;
-    // The total sheet width/height scaled
-    const sheetCols = 4; // 4 frames per row
-    const sheetRows = 4; // 4 directions
+    const scaleX = renderSize / playerSpriteSheet.frameWidth;
+    const scaleY = renderSize / playerSpriteSheet.frameHeight;
+    const sheetCols = 4;
+    const sheetRows = 4;
     const bgWidth = playerSpriteSheet.frameWidth * sheetCols * scaleX;
     const bgHeight = playerSpriteSheet.frameHeight * sheetRows * scaleY;
 
     return {
+      renderSize,
+      offset: (renderSize - tileSize) / 2,
       backgroundImage: `url(${playerSpriteSheet.src})`,
       backgroundPosition: `${frameX * scaleX}px ${frameY * scaleY}px`,
       backgroundSize: `${bgWidth}px ${bgHeight}px`,
@@ -288,22 +293,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
         <div
           className="absolute"
           style={{
-            left: playerScreenX * tileSize,
-            top: playerScreenY * tileSize,
-            width: tileSize,
-            height: tileSize,
+            left: playerScreenX * tileSize - playerSpriteStyle.offset,
+            top: playerScreenY * tileSize - playerSpriteStyle.offset,
+            width: playerSpriteStyle.renderSize,
+            height: playerSpriteStyle.renderSize,
             zIndex: 20 + gameState.playerPosition.y,
-            ...playerSpriteStyle,
+            backgroundImage: playerSpriteStyle.backgroundImage,
+            backgroundPosition: playerSpriteStyle.backgroundPosition,
+            backgroundSize: playerSpriteStyle.backgroundSize,
+            backgroundRepeat: playerSpriteStyle.backgroundRepeat,
+            imageRendering: playerSpriteStyle.imageRendering,
           }}
         />
       ) : fallbackPlayerSprite && fallbackPlayerFrame ? (
         <div className="absolute transition-all duration-100"
           style={{
-            left: playerScreenX * tileSize, top: playerScreenY * tileSize,
-            width: tileSize, height: tileSize, zIndex: 20 + gameState.playerPosition.y,
+            left: playerScreenX * tileSize - tileSize * 0.25,
+            top: playerScreenY * tileSize - tileSize * 0.25,
+            width: tileSize * 1.5,
+            height: tileSize * 1.5,
+            zIndex: 20 + gameState.playerPosition.y,
             transform: gameState.playerDirection === 'left' ? 'scaleX(-1)' : 'scaleX(1)',
           }}>
-          <SpriteRenderer sprite={fallbackPlayerFrame} size={pixelSize} />
+          <SpriteRenderer sprite={fallbackPlayerFrame} size={Math.ceil(pixelSize * 1.5)} />
         </div>
       ) : null}
 
