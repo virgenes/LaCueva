@@ -4,6 +4,7 @@ import { GameData, GameState, GameMap, Position } from '../types/GameTypes';
 import { imageTiles, isImageTile, isObjectTile, getGroundTileFor } from '../data/imageTiles';
 import { SpatialHash } from '../systems/SpatialHash';
 import { imageSprites, PLAYER_SPRITE_SHEET_ID } from '../data/imageSprites';
+import { MapEffects } from './MapEffects';
 
 interface GameCanvasProps {
   gameData: GameData;
@@ -16,6 +17,7 @@ interface GameCanvasProps {
   isMobile?: boolean;
   isWalking?: boolean;
   selectedCharacterId?: string;
+  timeOfDay?: number;
 }
 
 export interface MapMonster {
@@ -36,33 +38,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
   isMobile = false,
   isWalking = false,
   selectedCharacterId,
+  timeOfDay = 0.5,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  // Measure container with ResizeObserver
   useEffect(() => {
     const el = containerRef.current?.parentElement;
     if (!el) return;
-
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
-      if (entry) {
-        setContainerSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
-      }
+      if (entry) setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Responsive tileSize calculation
   const targetVisibleTilesY = isMobile ? 9 : 9;
   const targetVisibleTilesX = isMobile ? 11 : 13;
 
-  // Use prop pixelSize if container not measured yet, otherwise compute
   const pixelSize = useMemo(() => {
     if (containerSize.height <= 0) return pixelSizeProp || 5;
     const fromHeight = Math.floor(containerSize.height / (targetVisibleTilesY * 8));
@@ -80,7 +74,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     height: containerSize.height > 0 ? Math.min(Math.floor(containerSize.height / tileSize), currentMap.height) : targetVisibleTilesY,
   }), [containerSize, tileSize, currentMap.width, currentMap.height, targetVisibleTilesX, targetVisibleTilesY]);
 
-  // Camera offset clamped to map bounds
   const cameraOffset = useMemo(() => {
     const centerX = Math.floor(viewportTiles.width / 2);
     const centerY = Math.floor(viewportTiles.height / 2);
@@ -91,7 +84,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     return { x: offsetX, y: offsetY };
   }, [gameState.playerPosition, currentMap, viewportTiles]);
 
-  // Render tile (supports ground + object layers)
   const renderTile = useCallback((tileId: string, x: number, y: number, key: string) => {
     const elements: JSX.Element[] = [];
 
@@ -134,7 +126,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     return null;
   }, [tileSize, pixelSize, gameData.tiles]);
 
-  // Visible tiles
   const visibleTiles = useMemo(() => {
     const tiles: JSX.Element[] = [];
     const groundLayer = currentMap.layers.find(l => l.name === 'ground');
@@ -156,25 +147,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     return tiles;
   }, [currentMap, cameraOffset, tileSize, pixelSize, viewportTiles, renderTile]);
 
-  // Visible monsters — use SpatialHash if available, otherwise filter manually
   const renderedMonsters = useMemo(() => {
     let visibleMonsters = mapMonsters;
-
     if (spatialHash) {
-      const entities = spatialHash.queryRect(
-        cameraOffset.x, cameraOffset.y,
-        cameraOffset.x + viewportTiles.width - 1,
-        cameraOffset.y + viewportTiles.height - 1
-      );
+      const entities = spatialHash.queryRect(cameraOffset.x, cameraOffset.y, cameraOffset.x + viewportTiles.width - 1, cameraOffset.y + viewportTiles.height - 1);
       const monsterIds = new Set(entities.filter(e => e.type === 'monster').map(e => e.id));
       visibleMonsters = mapMonsters.filter(m => monsterIds.has(m.id));
     }
-
     return visibleMonsters.map(monster => {
       const screenX = monster.position.x - cameraOffset.x;
       const screenY = monster.position.y - cameraOffset.y;
       if (screenX < 0 || screenX >= viewportTiles.width || screenY < 0 || screenY >= viewportTiles.height) return null;
-
       return (
         <div key={`monster-${monster.id}`} className="absolute transition-all duration-200 cursor-pointer hover:scale-110"
           style={{ left: screenX * tileSize, top: screenY * tileSize, width: tileSize, height: tileSize, zIndex: 15 + monster.position.y }}
@@ -185,30 +168,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     }).filter(Boolean);
   }, [mapMonsters, cameraOffset, tileSize, pixelSize, viewportTiles, onMonsterEncounter, spatialHash]);
 
-  // Visible NPCs — use SpatialHash if available
   const renderedNpcs = useMemo(() => {
     let npcIds = currentMap.npcs;
-
     if (spatialHash) {
-      const entities = spatialHash.queryRect(
-        cameraOffset.x, cameraOffset.y,
-        cameraOffset.x + viewportTiles.width - 1,
-        cameraOffset.y + viewportTiles.height - 1
-      );
+      const entities = spatialHash.queryRect(cameraOffset.x, cameraOffset.y, cameraOffset.x + viewportTiles.width - 1, cameraOffset.y + viewportTiles.height - 1);
       const visibleNpcIds = new Set(entities.filter(e => e.type === 'npc').map(e => e.id));
       npcIds = npcIds.filter(id => visibleNpcIds.has(id));
     }
-
     return npcIds.map(npcId => {
       const npc = gameData.characters[npcId];
       if (!npc) return null;
       const sprite = gameData.sprites[npc.spriteId];
       if (!sprite || !sprite.frames[0]) return null;
-
       const screenX = npc.position.x - cameraOffset.x;
       const screenY = npc.position.y - cameraOffset.y;
       if (screenX < 0 || screenX >= viewportTiles.width || screenY < 0 || screenY >= viewportTiles.height) return null;
-
       return (
         <div key={`npc-${npcId}`} className="absolute transition-all duration-150"
           style={{ left: screenX * tileSize, top: screenY * tileSize, width: tileSize, height: tileSize, zIndex: 10 + npc.position.y }}>
@@ -223,44 +197,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
   const playerScreenX = gameState.playerPosition.x - cameraOffset.x;
   const playerScreenY = gameState.playerPosition.y - cameraOffset.y;
 
-  // Sprite sheet animation state
   const [playerFrame, setPlayerFrame] = useState(0);
   const playerDir = gameState.playerDirection;
 
   useEffect(() => {
-    if (!isWalking || !playerSpriteSheet) {
-      setPlayerFrame(0);
-      return;
-    }
+    if (!isWalking || !playerSpriteSheet) { setPlayerFrame(0); return; }
     const animKey = `walk_${playerDir}`;
     const anim = playerSpriteSheet.animations[animKey];
     if (!anim) return;
-
-    const interval = setInterval(() => {
-      setPlayerFrame(prev => (prev + 1) % anim.frameCount);
-    }, anim.speed);
+    const interval = setInterval(() => setPlayerFrame(prev => (prev + 1) % anim.frameCount), anim.speed);
     return () => clearInterval(interval);
   }, [isWalking, playerDir, playerSpriteSheet]);
 
-  // Compute background-position for the sprite sheet
   const playerSpriteStyle = useMemo(() => {
     if (!playerSpriteSheet) return null;
     const animKey = isWalking ? `walk_${playerDir}` : `idle_${playerDir}`;
     const anim = playerSpriteSheet.animations[animKey];
     if (!anim) return null;
-
-    // Make player sprite larger (1.5x tile size) for visual presence
     const playerScale = 1.5;
     const renderSize = tileSize * playerScale;
     const frameX = -(playerFrame * playerSpriteSheet.frameWidth);
     const frameY = -(anim.row * playerSpriteSheet.frameHeight);
     const scaleX = renderSize / playerSpriteSheet.frameWidth;
     const scaleY = renderSize / playerSpriteSheet.frameHeight;
-    const sheetCols = 4;
-    const sheetRows = 4;
-    const bgWidth = playerSpriteSheet.frameWidth * sheetCols * scaleX;
-    const bgHeight = playerSpriteSheet.frameHeight * sheetRows * scaleY;
-
+    const bgWidth = playerSpriteSheet.frameWidth * 4 * scaleX;
+    const bgHeight = playerSpriteSheet.frameHeight * 4 * scaleY;
     return {
       renderSize,
       offset: (renderSize - tileSize) / 2,
@@ -272,7 +233,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     };
   }, [playerSpriteSheet, playerDir, isWalking, playerFrame, tileSize]);
 
-  // Fallback: old pixel-art sprite
   const fallbackPlayerSprite = gameData.sprites['player'];
   const fallbackPlayerFrame = fallbackPlayerSprite?.frames[0];
 
@@ -288,10 +248,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
       {renderedMonsters}
       {renderedNpcs}
 
-      {/* Player rendered with sprite sheet */}
+      {/* Player */}
       {playerSpriteStyle ? (
-        <div
-          className="absolute"
+        <div className="absolute"
           style={{
             left: playerScreenX * tileSize - playerSpriteStyle.offset,
             top: playerScreenY * tileSize - playerSpriteStyle.offset,
@@ -303,15 +262,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
             backgroundSize: playerSpriteStyle.backgroundSize,
             backgroundRepeat: playerSpriteStyle.backgroundRepeat,
             imageRendering: playerSpriteStyle.imageRendering,
-          }}
-        />
+          }} />
       ) : fallbackPlayerSprite && fallbackPlayerFrame ? (
         <div className="absolute transition-all duration-100"
           style={{
             left: playerScreenX * tileSize - tileSize * 0.25,
             top: playerScreenY * tileSize - tileSize * 0.25,
-            width: tileSize * 1.5,
-            height: tileSize * 1.5,
+            width: tileSize * 1.5, height: tileSize * 1.5,
             zIndex: 20 + gameState.playerPosition.y,
             transform: gameState.playerDirection === 'left' ? 'scaleX(-1)' : 'scaleX(1)',
           }}>
@@ -319,12 +276,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
         </div>
       ) : null}
 
-      {/* Ambient lighting */}
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,0,0,0.3) 100%)' }} />
+      {/* Map Effects Layer */}
+      <MapEffects
+        mapId={currentMap.id}
+        width={viewportTiles.width}
+        height={viewportTiles.height}
+        tileSize={tileSize}
+        timeOfDay={timeOfDay}
+      />
+
+      {/* Ambient vignette */}
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 60,
+        background: 'radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,0,0,0.4) 100%)' }} />
       {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none opacity-5"
-        style={{ background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)' }} />
+      <div className="absolute inset-0 pointer-events-none opacity-5" style={{ zIndex: 61,
+        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)' }} />
     </div>
   );
 });

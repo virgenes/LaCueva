@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { X, Settings, Save, HelpCircle, Maximize, Swords } from 'lucide-react';
 import { useGameEngine } from './hooks/useGameEngine';
 import { GameCanvas, MapMonster } from './components/GameCanvas';
@@ -10,11 +10,13 @@ import { PrologueScene } from './components/PrologueScene';
 import { GameMenu } from './components/GameMenu';
 import { CombatSystem } from './components/CombatSystem';
 import { CharacterSelect } from './components/CharacterSelect';
+import { BattleTransition } from './components/BattleTransition';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { teleporterConnections } from './data/defaultMap';
 import { generateMapMonsters, monsterRegistry } from './data/monsters';
+import { playBGM, stopBGM, sfxEncounter, sfxSelect, sfxStep } from './systems/RPGAudioManager';
 
 interface RPGGameProps {
   onClose: () => void;
@@ -22,12 +24,15 @@ interface RPGGameProps {
 
 type GameMode = 'menu' | 'character_select' | 'prologue' | 'playing' | 'combat';
 
+// Day/night cycle: 5 minutes = full cycle
+const DAY_CYCLE_MS = 5 * 60 * 1000;
+
 export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
   const { playClick, playHover } = useSoundEffects();
   const { language } = useSettings();
   const isMobile = useIsMobile();
   const isSpanish = language === 'es';
-  
+
   const [gameMode, setGameMode] = useState<GameMode>('menu');
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -35,6 +40,39 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
   const [mapMonsters, setMapMonsters] = useState<MapMonster[]>([]);
   const [combatEnemies, setCombatEnemies] = useState<string[]>([]);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string>('matias');
+  const [battleTransitionActive, setBattleTransitionActive] = useState(false);
+  const pendingCombatRef = useRef<string[]>([]);
+
+  // Day/night cycle
+  const [timeOfDay, setTimeOfDay] = useState(0.35); // Start at morning
+  useEffect(() => {
+    if (gameMode !== 'playing') return;
+    const startTime = Date.now() - timeOfDay * DAY_CYCLE_MS;
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - startTime) % DAY_CYCLE_MS;
+      setTimeOfDay(elapsed / DAY_CYCLE_MS);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [gameMode]);
+
+  // BGM management
+  useEffect(() => {
+    if (gameMode === 'playing') {
+      const mapId = gameState?.currentMapId;
+      if (mapId === 'cave') playBGM('cave', 0.04);
+      else playBGM('overworld', 0.04);
+    } else if (gameMode === 'combat') {
+      playBGM('battle', 0.05);
+    } else if (gameMode === 'menu' || gameMode === 'character_select') {
+      playBGM('menu', 0.03);
+    } else {
+      stopBGM();
+    }
+    return () => {};
+  }, [gameMode]);
+
+  // Cleanup BGM on unmount
+  useEffect(() => () => stopBGM(), []);
 
   const {
     gameData, gameState, currentMap, activeDialogue, dialogueIndex, displayedText,
@@ -69,44 +107,52 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     }
   }, [currentMap?.id, gameMode, insertMonstersIntoHash]);
 
+  const startBattleWithTransition = useCallback((enemyIds: string[]) => {
+    pendingCombatRef.current = enemyIds;
+    sfxEncounter();
+    setBattleTransitionActive(true);
+  }, []);
+
+  const handleTransitionComplete = useCallback(() => {
+    setBattleTransitionActive(false);
+    setCombatEnemies(pendingCombatRef.current);
+    setGameMode('combat');
+  }, []);
+
   const handleMonsterEncounter = useCallback((monster: MapMonster) => {
     const def = monsterRegistry[monster.monsterId];
     if (!def) return;
     if (def.hostile) {
-      playClick();
-      setCombatEnemies([monster.monsterId]);
       setMapMonsters(prev => prev.filter(m => m.id !== monster.id));
-      setGameMode('combat');
+      startBattleWithTransition([monster.monsterId]);
     }
-  }, [playClick]);
+  }, [startBattleWithTransition]);
 
+  // Random encounters
+  const lastEncounterPos = useRef('');
   useEffect(() => {
     if (gameMode !== 'playing' || !currentMap) return;
+    const posKey = `${gameState.playerPosition.x},${gameState.playerPosition.y}`;
+    if (posKey === lastEncounterPos.current) return;
+    lastEncounterPos.current = posKey;
+
     const encounterRate = currentMap.encounterRate || 0;
     const possibleEncounters = currentMap.possibleEncounters || [];
-    if (encounterRate > 0 && possibleEncounters.length > 0) {
-      if (Math.random() < encounterRate * 0.5) {
-        const hostileMonsters = possibleEncounters.filter(id => monsterRegistry[id]?.hostile);
-        if (hostileMonsters.length > 0) {
-          const randomMonster = hostileMonsters[Math.floor(Math.random() * hostileMonsters.length)];
-          const enemies = Math.random() < 0.3
-            ? [randomMonster, hostileMonsters[Math.floor(Math.random() * hostileMonsters.length)]]
-            : [randomMonster];
-          setCombatEnemies(enemies);
-          setGameMode('combat');
-        }
+    if (encounterRate > 0 && possibleEncounters.length > 0 && Math.random() < encounterRate * 0.5) {
+      const hostileMonsters = possibleEncounters.filter(id => monsterRegistry[id]?.hostile);
+      if (hostileMonsters.length > 0) {
+        const randomMonster = hostileMonsters[Math.floor(Math.random() * hostileMonsters.length)];
+        const enemies = Math.random() < 0.3
+          ? [randomMonster, hostileMonsters[Math.floor(Math.random() * hostileMonsters.length)]]
+          : [randomMonster];
+        startBattleWithTransition(enemies);
       }
     }
-  }, [gameState.playerPosition, currentMap, gameMode]);
+  }, [gameState.playerPosition, currentMap, gameMode, startBattleWithTransition]);
 
   const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
+    if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); setIsFullscreen(true); }
+    else { document.exitFullscreen(); setIsFullscreen(false); }
   }, []);
 
   useEffect(() => {
@@ -115,21 +161,16 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
       if (e.key === 'Escape' && !activeDialogue && !showModMenu && !showGameMenu) {
         if (gameMode === 'playing') setShowGameMenu(true);
       }
-      if (e.key === 'Tab') {
-        e.preventDefault();
-        setShowGameMenu(prev => !prev);
-      }
+      if (e.key === 'Tab') { e.preventDefault(); setShowGameMenu(prev => !prev); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [activeDialogue, showModMenu, showGameMenu, gameMode]);
 
-  // Only use selected character in party for combat
   const partyCharacters = useMemo(() => {
     const allChars = Object.values(gameData.characters).filter(c =>
       ['matias', 'angel', 'alejandro', 'miguel', 'elias', 'maximo'].includes(c.id)
     );
-    // Put selected character first
     const selected = allChars.find(c => c.id === selectedCharacterId);
     const rest = allChars.filter(c => c.id !== selectedCharacterId);
     return selected ? [selected, ...rest] : allChars;
@@ -137,9 +178,9 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
 
   const handleCharacterSelect = useCallback((charId: string) => {
     setSelectedCharacterId(charId);
-    playClick();
+    sfxSelect();
     setGameMode('playing');
-  }, [playClick]);
+  }, []);
 
   if (!currentMap && gameMode === 'playing') {
     return (
@@ -151,61 +192,52 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black">
+      {/* Battle Transition overlay */}
+      <BattleTransition active={battleTransitionActive} onComplete={handleTransitionComplete} />
+
       <div className="flex flex-col max-w-3xl w-full max-h-[95vh] mx-2" onClick={(e) => e.stopPropagation()}>
-        
-        {/* Main Menu */}
+
         {gameMode === 'menu' && (
           <div className="relative border-4 border-white/20 bg-black rounded-sm overflow-hidden shadow-2xl" style={{ height: '450px' }}>
-            <MainMenu
-              hasSaveData={hasSaveData}
+            <MainMenu hasSaveData={hasSaveData}
               onStartStory={() => setGameMode('character_select')}
               onStartFree={() => setGameMode('character_select')}
               onContinue={() => setGameMode('playing')}
-              onSettings={() => setShowModMenu(true)}
-            />
-            <button
-              onClick={() => { playClick(); onClose(); }}
-              className="absolute top-3 left-3 p-2 rounded-sm border-2 border-red-500/50 hover:bg-red-500/20 transition-colors z-50 bg-black/80"
-            >
+              onSettings={() => setShowModMenu(true)} />
+            <button onClick={() => { playClick(); onClose(); }}
+              className="absolute top-3 left-3 p-2 rounded-sm border-2 border-red-500/50 hover:bg-red-500/20 transition-colors z-50 bg-black/80">
               <X size={16} className="text-red-400" />
             </button>
           </div>
         )}
 
-        {/* Character Selection */}
         {gameMode === 'character_select' && (
           <div className="relative border-4 border-white/20 bg-black rounded-sm overflow-hidden shadow-2xl" style={{ height: '500px' }}>
-            <CharacterSelect
-              onSelect={handleCharacterSelect}
-              onBack={() => setGameMode('menu')}
-            />
+            <CharacterSelect onSelect={handleCharacterSelect} onBack={() => setGameMode('menu')} />
           </div>
         )}
 
-        {/* Prologue Scene */}
         {gameMode === 'prologue' && (
           <div className="relative border-4 border-white/20 bg-black rounded-sm overflow-hidden shadow-2xl" style={{ height: '450px' }}>
             <PrologueScene onComplete={() => setGameMode('playing')} onSkip={() => setGameMode('playing')} />
           </div>
         )}
 
-        {/* Main Gameplay */}
         {gameMode === 'playing' && (
           <>
-            {/* Header */}
             <div className="flex items-center justify-between p-2 bg-black border-2 border-b-0 border-white/20 rounded-t-sm">
               <div className="flex items-center gap-3">
-                <h2 className="font-pixel text-xs text-white truncate">
-                  {isSpanish ? gameData.titleEs : gameData.title}
-                </h2>
+                <h2 className="font-pixel text-xs text-white truncate">{isSpanish ? gameData.titleEs : gameData.title}</h2>
                 {mapMonsters.length > 0 && (
                   <div className="flex items-center gap-1 px-1.5 py-0.5 border border-red-500/50 rounded-sm">
                     <Swords size={10} className="text-red-400" />
-                    <span className="font-pixel text-[7px] text-red-400">
-                      {mapMonsters.filter(m => monsterRegistry[m.monsterId]?.hostile).length}
-                    </span>
+                    <span className="font-pixel text-[7px] text-red-400">{mapMonsters.filter(m => monsterRegistry[m.monsterId]?.hostile).length}</span>
                   </div>
                 )}
+                {/* Time indicator */}
+                <span className="font-pixel text-[7px] text-yellow-400/60">
+                  {timeOfDay < 0.2 || timeOfDay > 0.8 ? '🌙' : timeOfDay < 0.3 || timeOfDay > 0.7 ? '🌅' : '☀️'}
+                </span>
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => { playClick(); saveGame(); }} onMouseEnter={playHover}
@@ -220,14 +252,13 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                   className="p-1.5 border border-white/20 hover:bg-white/10 transition-colors rounded-sm">
                   <Maximize size={12} className="text-white/60" />
                 </button>
-                <button onClick={() => { playClick(); onClose(); }} onMouseEnter={playHover}
+                <button onClick={() => { playClick(); stopBGM(); onClose(); }} onMouseEnter={playHover}
                   className="p-1.5 border border-red-500/30 hover:bg-red-500/10 transition-colors rounded-sm">
                   <X size={12} className="text-red-400" />
                 </button>
               </div>
             </div>
 
-            {/* Game Screen */}
             <div className="relative border-2 border-white/20 bg-black overflow-hidden flex items-center justify-center py-2">
               <GameCanvas
                 gameData={gameData} gameState={gameState} currentMap={currentMap!}
@@ -235,6 +266,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                 mapMonsters={mapMonsters} onMonsterEncounter={handleMonsterEncounter}
                 spatialHash={spatialHash} isMobile={isMobile} isWalking={isWalking}
                 selectedCharacterId={selectedCharacterId}
+                timeOfDay={timeOfDay}
               />
               {activeDialogue && (
                 <DialogueBox dialogue={activeDialogue} dialogueIndex={dialogueIndex}
@@ -261,7 +293,6 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
               )}
             </div>
 
-            {/* Footer */}
             <div className="p-2 bg-black border-2 border-t-0 border-white/20 rounded-b-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -278,7 +309,6 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
           </>
         )}
 
-        {/* Combat Mode */}
         {gameMode === 'combat' && (
           <div className="relative border-4 border-white/20 bg-black rounded-sm overflow-hidden shadow-2xl" style={{ height: '500px' }}>
             <CombatSystem
