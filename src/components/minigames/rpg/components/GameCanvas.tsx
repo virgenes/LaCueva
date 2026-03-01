@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { SpriteRenderer } from './SpriteRenderer';
 import { GameData, GameState, GameMap, Position } from '../types/GameTypes';
-import { imageTiles, isImageTile, isObjectTile, getGroundTileFor } from '../data/imageTiles';
+import { imageTiles, isImageTile, isObjectTile, getGroundTileFor, getTileScale } from '../data/imageTiles';
 import { SpatialHash } from '../systems/SpatialHash';
 import { imageSprites, PLAYER_SPRITE_SHEET_ID } from '../data/imageSprites';
 import { MapEffects } from './MapEffects';
@@ -18,6 +18,7 @@ interface GameCanvasProps {
   isWalking?: boolean;
   selectedCharacterId?: string;
   timeOfDay?: number;
+  suppressOverlay?: boolean;
 }
 
 export interface MapMonster {
@@ -28,17 +29,10 @@ export interface MapMonster {
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
-  gameData,
-  gameState,
-  currentMap,
-  pixelSize: pixelSizeProp,
-  mapMonsters = [],
-  onMonsterEncounter,
-  spatialHash,
-  isMobile = false,
-  isWalking = false,
-  selectedCharacterId,
-  timeOfDay = 0.5,
+  gameData, gameState, currentMap, pixelSize: pixelSizeProp,
+  mapMonsters = [], onMonsterEncounter, spatialHash,
+  isMobile = false, isWalking = false, selectedCharacterId,
+  timeOfDay = 0.5, suppressOverlay = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -95,25 +89,38 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
         const groundTileId = getGroundTileFor(tileId);
         if (groundTileId && imageTiles[groundTileId]) {
           elements.push(
-            <img key={`${key}-ground`} src={imageTiles[groundTileId].src} alt={groundTileId}
+            <img key={`${key}-ground`} src={imageTiles[groundTileId].src} alt=""
               className="absolute inset-0 pointer-events-none"
               style={{ width: tileSize, height: tileSize, imageRendering: 'pixelated', objectFit: 'cover' }}
-              draggable={false} />
+              draggable={false} loading="lazy" />
           );
         }
+        // Scale variation for natural look
+        const scale = getTileScale(tileId, x, y);
+        const dw = (imageTile.displayWidth || 1) * scale;
+        const dh = (imageTile.displayHeight || 1) * scale;
+        const objW = tileSize * dw;
+        const objH = tileSize * dh;
+        const offsetX = (tileSize - objW) / 2;
+        const offsetTop = (imageTile.offsetY || 0) + (tileSize - objH);
+
         elements.push(
-          <img key={`${key}-object`} src={imageTile.src} alt={tileId}
+          <img key={`${key}-object`} src={imageTile.src} alt=""
             className="absolute pointer-events-none"
-            style={{ width: tileSize, height: tileSize, imageRendering: 'pixelated', objectFit: 'contain',
-              zIndex: 5 + y, top: imageTile.offsetY || 0, left: 0 }}
-            draggable={false} />
+            style={{
+              width: objW, height: objH,
+              imageRendering: 'pixelated', objectFit: 'contain',
+              zIndex: 5 + y,
+              top: offsetTop, left: offsetX,
+            }}
+            draggable={false} loading="lazy" />
         );
       } else {
         elements.push(
-          <img key={`${key}-tile`} src={imageTile.src} alt={tileId}
+          <img key={`${key}-tile`} src={imageTile.src} alt=""
             className="pointer-events-none"
             style={{ width: tileSize, height: tileSize, imageRendering: 'pixelated', objectFit: 'cover' }}
-            draggable={false} />
+            draggable={false} loading="lazy" />
         );
       }
       return elements;
@@ -159,8 +166,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
       const screenY = monster.position.y - cameraOffset.y;
       if (screenX < 0 || screenX >= viewportTiles.width || screenY < 0 || screenY >= viewportTiles.height) return null;
       return (
-        <div key={`monster-${monster.id}`} className="absolute transition-all duration-200 cursor-pointer hover:scale-110"
-          style={{ left: screenX * tileSize, top: screenY * tileSize, width: tileSize, height: tileSize, zIndex: 15 + monster.position.y }}
+        <div key={`monster-${monster.id}`} className="absolute cursor-pointer"
+          style={{
+            left: screenX * tileSize, top: screenY * tileSize,
+            width: tileSize, height: tileSize, zIndex: 15 + monster.position.y,
+            transition: 'transform 0.15s',
+          }}
           onClick={() => onMonsterEncounter?.(monster)}>
           <SpriteRenderer sprite={monster.sprite} size={pixelSize} />
         </div>
@@ -184,8 +195,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
       const screenY = npc.position.y - cameraOffset.y;
       if (screenX < 0 || screenX >= viewportTiles.width || screenY < 0 || screenY >= viewportTiles.height) return null;
       return (
-        <div key={`npc-${npcId}`} className="absolute transition-all duration-150"
-          style={{ left: screenX * tileSize, top: screenY * tileSize, width: tileSize, height: tileSize, zIndex: 10 + npc.position.y }}>
+        <div key={`npc-${npcId}`} className="absolute"
+          style={{ left: screenX * tileSize, top: screenY * tileSize, width: tileSize, height: tileSize, zIndex: 10 + npc.position.y, transition: 'all 0.15s' }}>
           <SpriteRenderer sprite={sprite.frames[0]} size={pixelSize} />
         </div>
       );
@@ -223,8 +234,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
     const bgWidth = playerSpriteSheet.frameWidth * 4 * scaleX;
     const bgHeight = playerSpriteSheet.frameHeight * 4 * scaleY;
     return {
-      renderSize,
-      offset: (renderSize - tileSize) / 2,
+      renderSize, offset: (renderSize - tileSize) / 2,
       backgroundImage: `url(${playerSpriteSheet.src})`,
       backgroundPosition: `${frameX * scaleX}px ${frameY * scaleY}px`,
       backgroundSize: `${bgWidth}px ${bgHeight}px`,
@@ -250,28 +260,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
 
       {/* Player */}
       {playerSpriteStyle ? (
-        <div className="absolute"
-          style={{
-            left: playerScreenX * tileSize - playerSpriteStyle.offset,
-            top: playerScreenY * tileSize - playerSpriteStyle.offset,
-            width: playerSpriteStyle.renderSize,
-            height: playerSpriteStyle.renderSize,
-            zIndex: 20 + gameState.playerPosition.y,
-            backgroundImage: playerSpriteStyle.backgroundImage,
-            backgroundPosition: playerSpriteStyle.backgroundPosition,
-            backgroundSize: playerSpriteStyle.backgroundSize,
-            backgroundRepeat: playerSpriteStyle.backgroundRepeat,
-            imageRendering: playerSpriteStyle.imageRendering,
-          }} />
+        <div className="absolute" style={{
+          left: playerScreenX * tileSize - playerSpriteStyle.offset,
+          top: playerScreenY * tileSize - playerSpriteStyle.offset,
+          width: playerSpriteStyle.renderSize, height: playerSpriteStyle.renderSize,
+          zIndex: 20 + gameState.playerPosition.y,
+          backgroundImage: playerSpriteStyle.backgroundImage,
+          backgroundPosition: playerSpriteStyle.backgroundPosition,
+          backgroundSize: playerSpriteStyle.backgroundSize,
+          backgroundRepeat: playerSpriteStyle.backgroundRepeat,
+          imageRendering: playerSpriteStyle.imageRendering,
+        }} />
       ) : fallbackPlayerSprite && fallbackPlayerFrame ? (
-        <div className="absolute transition-all duration-100"
-          style={{
-            left: playerScreenX * tileSize - tileSize * 0.25,
-            top: playerScreenY * tileSize - tileSize * 0.25,
-            width: tileSize * 1.5, height: tileSize * 1.5,
-            zIndex: 20 + gameState.playerPosition.y,
-            transform: gameState.playerDirection === 'left' ? 'scaleX(-1)' : 'scaleX(1)',
-          }}>
+        <div className="absolute" style={{
+          left: playerScreenX * tileSize - tileSize * 0.25,
+          top: playerScreenY * tileSize - tileSize * 0.25,
+          width: tileSize * 1.5, height: tileSize * 1.5,
+          zIndex: 20 + gameState.playerPosition.y,
+          transform: gameState.playerDirection === 'left' ? 'scaleX(-1)' : 'scaleX(1)',
+        }}>
           <SpriteRenderer sprite={fallbackPlayerFrame} size={Math.ceil(pixelSize * 1.5)} />
         </div>
       ) : null}
@@ -283,14 +290,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
         height={viewportTiles.height}
         tileSize={tileSize}
         timeOfDay={timeOfDay}
+        isMobile={isMobile}
+        suppressOverlay={suppressOverlay}
       />
 
       {/* Ambient vignette */}
       <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 60,
         background: 'radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,0,0,0.4) 100%)' }} />
-      {/* Scanlines */}
-      <div className="absolute inset-0 pointer-events-none opacity-5" style={{ zIndex: 61,
-        background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)' }} />
+      {/* Scanlines (skip on mobile for performance) */}
+      {!isMobile && (
+        <div className="absolute inset-0 pointer-events-none opacity-5" style={{ zIndex: 61,
+          background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.5) 2px, rgba(0,0,0,0.5) 4px)' }} />
+      )}
     </div>
   );
 });
