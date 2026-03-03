@@ -33,6 +33,8 @@ type CombatPhaseUI =
   | 'victory'
   | 'defeat';
 
+const MONSTER_SPRITE_SCALE = 2;
+
 export const CombatSystem: React.FC<CombatSystemProps> = ({
   playerParty, enemies, onVictory, onDefeat, onFlee,
 }) => {
@@ -50,6 +52,7 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
   const [shakeTargetId, setShakeTargetId] = useState<string | null>(null);
   const [damageNumbers, setDamageNumbers] = useState<Array<{ id: string; value: number; x: number; y: number; isHeal: boolean }>>([]);
   const [monsterAnims, setMonsterAnims] = useState<Record<string, MonsterAnimState>>({});
+  const [monsterFrames, setMonsterFrames] = useState<Record<string, number>>({});
   const [turnLog, setTurnLog] = useState<string>('');
   const turnCountRef = useRef(0);
 
@@ -78,11 +81,45 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
   // Initialize monster animation states
   useEffect(() => {
     const anims: Record<string, MonsterAnimState> = {};
+    const frames: Record<string, number> = {};
     combatState.enemyParty.forEach(e => {
       anims[e.id] = 'idle';
+      frames[e.id] = 0;
     });
     setMonsterAnims(anims);
+    setMonsterFrames(frames);
   }, []);
+
+  // Animate monster sprite frames (only for slime)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMonsterFrames(prev => {
+        const updated = { ...prev };
+        combatState.enemyParty.forEach(enemy => {
+          const monsterId = enemy.id.replace(/_\d+$/, '');
+          
+          // Only animate slime, keep others at frame 0
+          if (monsterId !== 'slime') {
+            updated[enemy.id] = 0;
+            return;
+          }
+          
+          const spriteAsset = getMonsterSpriteAsset(monsterId);
+          if (!spriteAsset) return;
+
+          const animState = monsterAnims[enemy.id] || 'idle';
+          const animData = spriteAsset.animations[animState];
+          const maxFrames = animData?.frames || 1;
+
+          // Cycle through frames
+          updated[enemy.id] = ((prev[enemy.id] || 0) + 1) % maxFrames;
+        });
+        return updated;
+      });
+    }, 150); // Update frame every 150ms (~6.7 FPS animation) - slower for smoother look
+
+    return () => clearInterval(interval);
+  }, [combatState.enemyParty, monsterAnims]);
 
   // Check victory/defeat
   useEffect(() => {
@@ -350,7 +387,7 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
     <div className="absolute inset-0 bg-black flex flex-col select-none">
       {/* === TOP: Enemy Display === */}
       <div className="relative flex-shrink-0 border-b-2 border-white/20 overflow-hidden"
-        style={{ height: uiPhase === 'enemy_dodge' || uiPhase === 'class_minigame' ? '65%' : '40%' }}>
+        style={{ height: uiPhase === 'enemy_dodge' || uiPhase === 'class_minigame' ? '65%' : '50%' }}>
         <div className="absolute inset-0 bg-gradient-to-b from-gray-950 via-gray-900 to-black" />
         <div className="absolute inset-0 opacity-5" style={{
           backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
@@ -395,19 +432,39 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
                   {/* Monster sprite - use PNG if available */}
                   <div className="relative">
                     {spriteAsset ? (
-                      <img
-                        src={spriteAsset.src}
-                        alt={enemy.name}
-                        className="pixelated"
-                        style={{
-                          width: spriteAsset.frameWidth * 2,
-                          height: spriteAsset.frameHeight * 2,
-                          imageRendering: 'pixelated',
-                          objectFit: 'none',
-                          objectPosition: `-${spriteAsset.animations[animState]?.col * spriteAsset.frameWidth * 2 || 0}px -${spriteAsset.animations[animState]?.row * spriteAsset.frameHeight * 2 || 0}px`,
-                          filter: isDead ? 'grayscale(1) brightness(0.3)' : undefined,
-                        }}
-                      />
+                      (() => {
+                        const { frameWidth, frameHeight, animations } = spriteAsset;
+                        const scale = MONSTER_SPRITE_SCALE;
+                        const animData = animations[animState];
+                        const baseCol = animData?.col || 0;
+                        const row = animData?.row || 0;
+                        
+                        // Get current animated frame
+                        const currentFrame = monsterFrames[enemy.id] || 0;
+                        const col = baseCol + currentFrame;
+                        
+                        // Calculate total spritesheet size based on max frames
+                        // Most spritesheets have 6-8 columns and 3-4 rows
+                        const maxCols = Math.max(...Object.values(animations).map(a => (a.col || 0) + (a.frames || 1)));
+                        const maxRows = Math.max(...Object.values(animations).map(a => a.row)) + 1;
+                        
+                        return (
+                          <div
+                            className="pixelated"
+                            style={{
+                              width: `${frameWidth * scale}px`,
+                              height: `${frameHeight * scale}px`,
+                              imageRendering: 'pixelated',
+                              backgroundImage: `url(${spriteAsset.src})`,
+                              backgroundPosition: `-${col * frameWidth * scale}px -${row * frameHeight * scale}px`,
+                              backgroundSize: `${frameWidth * maxCols * scale}px ${frameHeight * maxRows * scale}px`,
+                              backgroundRepeat: 'no-repeat',
+                              transition: 'none', // Prevent CSS transitions on background position
+                              filter: isDead ? 'grayscale(1) brightness(0.3)' : undefined,
+                            }}
+                          />
+                        );
+                      })()
                     ) : (
                       <SpriteRenderer sprite={enemy.sprite} size={6} />
                     )}
@@ -516,10 +573,10 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
       {/* === MIDDLE: Party Display + Log === */}
       <div className="flex-shrink-0 bg-black border-b-2 border-white/20">
         {/* Turn log */}
-        <div className="h-8 px-3 flex items-center border-b border-white/10">
+        <div className="h-6 px-3 flex items-center border-b border-white/10">
           <AnimatePresence mode="wait">
             <motion.p key={turnLog || 'init'} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="font-pixel text-[8px] text-white/70 w-full">
+              className="font-pixel text-[7px] text-white/70 w-full">
               <span className="text-yellow-400">* </span>
               {turnLog || (isSpanish ? 'Selecciona quién ataca...' : 'Select who attacks...')}
             </motion.p>
@@ -527,7 +584,7 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
         </div>
 
         {/* Party members row */}
-        <div className="flex items-center gap-1 px-2 py-1.5 overflow-x-auto">
+        <div className="flex items-center gap-1 px-2 py-1 overflow-x-auto">
           {combatState.playerParty.map((char, idx) => {
             const hpPercent = getHpPercent(char.stats.hp, char.stats.maxHp);
             const classInfo = heroClasses[characterClassMap[char.id]];
@@ -538,7 +595,7 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
 
             return (
               <motion.div key={char.id}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-sm border transition-all ${
+                className={`flex-shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-sm border transition-all ${
                   isActive ? 'border-yellow-400 bg-yellow-400/10' :
                   isSelectable ? 'border-white/30 hover:border-white/60 cursor-pointer' :
                   isHealTarget ? 'border-green-400/50 hover:border-green-400 cursor-pointer' :
@@ -555,17 +612,17 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
                 }}
               >
                 {/* Class icon */}
-                <span className="text-sm">{classInfo?.icon || '👤'}</span>
+                <span className="text-xs">{classInfo?.icon || '👤'}</span>
                 <div className="min-w-0">
-                  <p className="font-pixel text-[7px] truncate" style={{ color: isActive ? (classInfo?.accentColor || '#fff') : 'rgba(255,255,255,0.6)' }}>
+                  <p className="font-pixel text-[6px] truncate" style={{ color: isActive ? (classInfo?.accentColor || '#fff') : 'rgba(255,255,255,0.6)' }}>
                     {char.name}
                   </p>
                   <div className="flex items-center gap-1">
-                    <div className="w-12 h-1.5 bg-white/10 rounded-sm overflow-hidden border border-white/15">
+                    <div className="w-10 h-1 bg-white/10 rounded-sm overflow-hidden border border-white/15">
                       <motion.div className="h-full" initial={false}
                         animate={{ width: `${hpPercent}%`, backgroundColor: getHpColor(hpPercent) }} />
                     </div>
-                    <span className="font-pixel text-[6px] text-white/40">{char.stats.hp}</span>
+                    <span className="font-pixel text-[5px] text-white/40">{char.stats.hp}</span>
                   </div>
                 </div>
               </motion.div>
@@ -575,7 +632,7 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
       </div>
 
       {/* === BOTTOM: Action Menu === */}
-      <div className="flex-1 bg-black px-2 py-1.5 flex flex-col justify-center min-h-[80px]">
+      <div className="flex-1 bg-black px-2 py-1 flex flex-col justify-center min-h-[60px]">
         {/* Select character phase */}
         {uiPhase === 'select_character' && (
           <div className="text-center">

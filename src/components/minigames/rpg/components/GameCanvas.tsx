@@ -5,6 +5,7 @@ import { imageTiles, isImageTile, isObjectTile, getGroundTileFor, getTileScale }
 import { SpatialHash } from '../systems/SpatialHash';
 import { imageSprites, PLAYER_SPRITE_SHEET_ID } from '../data/imageSprites';
 import { MapEffects } from './MapEffects';
+import { MonsterSpriteRenderer } from './MonsterSpriteRenderer';
 
 interface GameCanvasProps {
   gameData: GameData;
@@ -101,15 +102,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
         const dh = (imageTile.displayHeight || 1) * scale;
         const objW = tileSize * dw;
         const objH = tileSize * dh;
-        const offsetX = (tileSize - objW) / 2;
-        const offsetTop = (imageTile.offsetY || 0) + (tileSize - objH);
+        
+        // For bed, center it on the tile; for sign, use custom offset
+        let offsetX, offsetTop;
+        if (tileId === 'img_bed') {
+          offsetX = 0;
+          offsetTop = 0;
+        } else if (tileId === 'img_sign') {
+          offsetX = 0;
+          offsetTop = (imageTile.offsetY || 0);
+        } else {
+          offsetX = (tileSize - objW) / 2;
+          offsetTop = (imageTile.offsetY || 0) + (tileSize - objH);
+        }
+
+        // Use 'cover' for bed and sign to make them fill the container while maintaining aspect ratio
+        const objectFit = (tileId === 'img_bed' || tileId === 'img_sign') ? 'cover' : 'contain';
 
         elements.push(
           <img key={`${key}-object`} src={imageTile.src} alt=""
             className="absolute pointer-events-none"
             style={{
               width: objW, height: objH,
-              imageRendering: 'pixelated', objectFit: 'contain',
+              imageRendering: 'pixelated', objectFit: objectFit,
               zIndex: 5 + y,
               top: offsetTop, left: offsetX,
             }}
@@ -173,7 +188,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = React.memo(({
             transition: 'transform 0.15s',
           }}
           onClick={() => onMonsterEncounter?.(monster)}>
-          <SpriteRenderer sprite={monster.sprite} size={pixelSize} />
+          <MonsterSpriteRenderer 
+            monsterId={monster.monsterId} 
+            fallbackSprite={monster.sprite} 
+            size={pixelSize} 
+          />
         </div>
       );
     }).filter(Boolean);

@@ -71,17 +71,18 @@ export const imageTiles: Record<string, ImageTile> = {
     interactionType: 'dialogue', interactionData: 'sign_welcome',
     layer: 'object',
     groundTile: 'img_grass',
-    displayWidth: 1.3,
-    displayHeight: 1.3,
+    displayWidth: 1.5,
+    displayHeight: 1.5,
+    offsetY: -20,
   },
   img_bed: {
     id: 'img_bed', src: BedImage, solid: true, interactable: true,
     interactionType: 'dialogue', interactionData: 'bed_rest',
     layer: 'object',
     groundTile: 'img_wood_floor',
-    displayWidth: 1.6,
-    displayHeight: 1.6,
-    offsetY: -8,
+    displayWidth: 2.5,
+    displayHeight: 2.5,
+    offsetY: -12,
   },
 };
 
