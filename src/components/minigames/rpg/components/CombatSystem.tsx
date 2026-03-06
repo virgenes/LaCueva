@@ -18,6 +18,8 @@ interface CombatSystemProps {
   onVictory: (exp: number, gold: number, items: string[]) => void;
   onDefeat: () => void;
   onFlee: () => void;
+  landscapeMode?: boolean;
+  landscapeHorizontal?: boolean;
 }
 
 const allSkills: Record<string, Skill> = { ...defaultSkills, ...classSkills };
@@ -36,7 +38,7 @@ type CombatPhaseUI =
 const MONSTER_SPRITE_SCALE = 2;
 
 export const CombatSystem: React.FC<CombatSystemProps> = ({
-  playerParty, enemies, onVictory, onDefeat, onFlee,
+  playerParty, enemies, onVictory, onDefeat, onFlee, landscapeMode = false, landscapeHorizontal = false,
 }) => {
   const { language } = useSettings();
   const isSpanish = language === 'es';
@@ -54,6 +56,7 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
   const [monsterAnims, setMonsterAnims] = useState<Record<string, MonsterAnimState>>({});
   const [monsterFrames, setMonsterFrames] = useState<Record<string, number>>({});
   const [turnLog, setTurnLog] = useState<string>('');
+  const [minigameExpanding, setMinigameExpanding] = useState(false);
   const turnCountRef = useRef(0);
 
   // Active character for actions
@@ -368,6 +371,18 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
   const getHpPercent = (c: number, m: number) => Math.max(0, (c / m) * 100);
   const getHpColor = (p: number) => p > 50 ? '#22c55e' : p > 25 ? '#eab308' : '#ef4444';
 
+  // Trigger expand animation when entering/leaving minigame phases
+  const isMinigamePhase = uiPhase === 'class_minigame' || uiPhase === 'enemy_dodge';
+  useEffect(() => {
+    if (landscapeHorizontal && isMinigamePhase) {
+      setMinigameExpanding(true);
+    } else {
+      // Small delay for exit animation
+      const t = setTimeout(() => setMinigameExpanding(false), 100);
+      return () => clearTimeout(t);
+    }
+  }, [landscapeHorizontal, isMinigamePhase]);
+
   // Get the current attacking enemy for dodge box
   const currentAttackingEnemy = useMemo(() => {
     if (uiPhase !== 'enemy_dodge') return null;
@@ -383,9 +398,390 @@ export const CombatSystem: React.FC<CombatSystemProps> = ({
     return currentAttackingEnemy.id.replace(/_\d+$/, '');
   }, [currentAttackingEnemy]);
 
+  // ═══════════════════════════════════════════════════════════
+  // LANDSCAPE HORIZONTAL LAYOUT (Left: Enemies | Right: Party+Menu)
+  // Minigames expand to full center screen with epic transition
+  // ═══════════════════════════════════════════════════════════
+  if (landscapeHorizontal) {
+    return (
+      <div className="absolute inset-0 bg-black flex select-none overflow-hidden">
+        {/* Animated background grid */}
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+          backgroundSize: '20px 20px',
+        }} />
+
+        {/* ─── MINIGAME FULL-SCREEN OVERLAY ─── */}
+        <AnimatePresence>
+          {isMinigamePhase && minigameExpanding && (
+            <motion.div
+              className="absolute inset-0 z-[100] flex items-center justify-center"
+              initial={{ clipPath: 'circle(0% at 50% 50%)' }}
+              animate={{ clipPath: 'circle(100% at 50% 50%)' }}
+              exit={{ clipPath: 'circle(0% at 50% 50%)' }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {/* Epic background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-black to-gray-900" />
+              
+              {/* Animated radial pulse */}
+              <motion.div
+                className="absolute inset-0"
+                animate={{ opacity: [0.03, 0.08, 0.03] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                style={{
+                  background: uiPhase === 'class_minigame'
+                    ? 'radial-gradient(circle, rgba(234,179,8,0.15) 0%, transparent 60%)'
+                    : 'radial-gradient(circle, rgba(239,68,68,0.15) 0%, transparent 60%)',
+                }}
+              />
+
+              {/* Corner decorations */}
+              <div className="absolute top-2 left-2 w-8 h-8 border-t-2 border-l-2 border-white/20" />
+              <div className="absolute top-2 right-2 w-8 h-8 border-t-2 border-r-2 border-white/20" />
+              <div className="absolute bottom-2 left-2 w-8 h-8 border-b-2 border-l-2 border-white/20" />
+              <div className="absolute bottom-2 right-2 w-8 h-8 border-b-2 border-r-2 border-white/20" />
+
+              {/* Phase label */}
+              <motion.div
+                className="absolute top-3 left-1/2 -translate-x-1/2 z-10"
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <p className="font-pixel text-[8px] tracking-widest" style={{
+                  color: uiPhase === 'class_minigame' ? '#eab308' : '#ef4444',
+                  textShadow: `0 0 10px ${uiPhase === 'class_minigame' ? 'rgba(234,179,8,0.5)' : 'rgba(239,68,68,0.5)'}`,
+                }}>
+                  {uiPhase === 'class_minigame'
+                    ? (isSpanish ? '── ⚔ ATAQUE ──' : '── ⚔ ATTACK ──')
+                    : (isSpanish ? '── 💀 ESQUIVA ──' : '── 💀 DODGE ──')
+                  }
+                </p>
+              </motion.div>
+
+              {/* Minigame content */}
+              <div className="relative z-10 w-full h-full flex items-center justify-center p-4">
+                {uiPhase === 'class_minigame' && activeChar && (
+                  <ClassMinigame
+                    classId={activeCharClass}
+                    characterName={activeChar.name}
+                    difficulty={1 + turnCountRef.current * 0.1}
+                    onComplete={handleMinigameResult}
+                  />
+                )}
+                {uiPhase === 'enemy_dodge' && currentAttackingEnemy && (
+                  <MonsterDodgeBox
+                    monsterId={currentAttackingMonsterId}
+                    monsterName={currentAttackingEnemy.name}
+                    attackPower={currentAttackingEnemy.stats.attack}
+                    duration={4000 + turnCountRef.current * 200}
+                    onComplete={handleDodgeComplete}
+                  />
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ─── LEFT PANEL: Enemy Display ─── */}
+        <div className="relative w-1/2 h-full border-r border-white/10 flex flex-col">
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-950 via-gray-900 to-black" />
+          
+          {/* Perspective grid floor */}
+          <div className="absolute inset-0 opacity-5" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+            backgroundSize: '30px 30px', transform: 'perspective(300px) rotateX(60deg)', transformOrigin: 'bottom',
+          }} />
+
+          {/* Turn log - top of left panel */}
+          <div className="relative z-10 h-6 px-3 flex items-center border-b border-white/10 bg-black/40">
+            <AnimatePresence mode="wait">
+              <motion.p key={turnLog || 'init'} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="font-pixel text-[6px] text-white/70 w-full truncate">
+                <span className="text-yellow-400">★ </span>
+                {turnLog || (isSpanish ? 'Selecciona quién ataca...' : 'Select who attacks...')}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+
+          {/* Enemies */}
+          <div className="relative z-10 flex-1 flex items-center justify-center gap-3 px-3">
+            {combatState.enemyParty.map((enemy, idx) => {
+              const monsterId = enemy.id.replace(/_\d+$/, '');
+              const spriteAsset = getMonsterSpriteAsset(monsterId);
+              const animState = monsterAnims[enemy.id] || 'idle';
+              const isDead = enemy.stats.hp <= 0;
+              const hpPercent = getHpPercent(enemy.stats.hp, enemy.stats.maxHp);
+
+              return (
+                <motion.div key={enemy.id}
+                  initial={{ x: -30, opacity: 0 }}
+                  animate={{
+                    x: 0, opacity: isDead ? 0.15 : 1,
+                    scale: isDead ? 0.5 : shakeTargetId === enemy.id ? 1.1 : 1,
+                    filter: isDead ? 'grayscale(1)' : 'none',
+                  }}
+                  transition={shakeTargetId === enemy.id ? { duration: 0.3 } : { delay: idx * 0.1, type: 'spring' }}
+                  className={`flex flex-col items-center ${
+                    uiPhase === 'select_target' && selectedSkill?.type !== 'heal' && !isDead ? 'cursor-pointer' : ''
+                  }`}
+                  onClick={() => {
+                    if (uiPhase === 'select_target' && selectedSkill?.type !== 'heal' && !isDead)
+                      handleTargetSelect(enemy.id);
+                  }}
+                >
+                  {/* Target indicator */}
+                  {uiPhase === 'select_target' && selectedSkill?.type !== 'heal' && !isDead && (
+                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 0.5, repeat: Infinity }}
+                      className="text-red-400 font-pixel text-[8px] mb-1">▼ {isSpanish ? 'ELEGIR' : 'SELECT'}</motion.div>
+                  )}
+
+                  {/* Monster sprite */}
+                  <div className="relative">
+                    {spriteAsset ? (() => {
+                      const { frameWidth, frameHeight, animations } = spriteAsset;
+                      const scale = MONSTER_SPRITE_SCALE;
+                      const animData = animations[animState];
+                      const baseCol = animData?.col || 0;
+                      const row = animData?.row || 0;
+                      const currentFrame = monsterFrames[enemy.id] || 0;
+                      const col = baseCol + currentFrame;
+                      const maxCols = Math.max(...Object.values(animations).map(a => (a.col || 0) + (a.frames || 1)));
+                      const maxRows = Math.max(...Object.values(animations).map(a => a.row)) + 1;
+                      return (
+                        <div className="pixelated" style={{
+                          width: `${frameWidth * scale}px`, height: `${frameHeight * scale}px`,
+                          imageRendering: 'pixelated',
+                          backgroundImage: `url(${spriteAsset.src})`,
+                          backgroundPosition: `-${col * frameWidth * scale}px -${row * frameHeight * scale}px`,
+                          backgroundSize: `${frameWidth * maxCols * scale}px ${frameHeight * maxRows * scale}px`,
+                          backgroundRepeat: 'no-repeat',
+                          filter: isDead ? 'grayscale(1) brightness(0.3)' : undefined,
+                        }} />
+                      );
+                    })() : <SpriteRenderer sprite={enemy.sprite} size={6} />}
+
+                    {attackingActorId === enemy.id && (
+                      <motion.div className="absolute inset-0 bg-white/30 rounded"
+                        animate={{ opacity: [0, 0.5, 0] }} transition={{ duration: 0.3 }} />
+                    )}
+                  </div>
+
+                  <div className="mt-1 text-center">
+                    <p className="font-pixel text-[7px] text-white/70">{enemy.name}</p>
+                    <div className="w-16 h-1.5 bg-white/10 rounded-full mt-0.5 overflow-hidden border border-white/15">
+                      <motion.div className="h-full rounded-full" initial={false}
+                        animate={{ width: `${hpPercent}%`, backgroundColor: getHpColor(hpPercent) }} />
+                    </div>
+                    <p className="font-pixel text-[5px] text-white/30 mt-0.5">{enemy.stats.hp}/{enemy.stats.maxHp}</p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ─── RIGHT PANEL: Party + Actions ─── */}
+        <div className="relative w-1/2 h-full flex flex-col bg-gray-950">
+          {/* Party members - top portion */}
+          <div className="flex-1 flex flex-col justify-center px-2 py-1 border-b border-white/10 overflow-y-auto">
+            <p className="font-pixel text-[6px] text-white/30 text-center mb-1">
+              {isSpanish ? '── EQUIPO ──' : '── PARTY ──'}
+            </p>
+            <div className="space-y-1">
+              {combatState.playerParty.map((char, idx) => {
+                const hpPercent = getHpPercent(char.stats.hp, char.stats.maxHp);
+                const classInfo = heroClasses[characterClassMap[char.id]];
+                const isActive = selectedCharIdx === idx && (uiPhase === 'select_action' || uiPhase === 'select_skill' || uiPhase === 'select_target' || uiPhase === 'class_minigame');
+                const isDead = char.stats.hp <= 0;
+                const isSelectable = uiPhase === 'select_character' && !isDead;
+                const isHealTarget = uiPhase === 'select_target' && selectedSkill?.type === 'heal' && !isDead;
+
+                return (
+                  <motion.div key={char.id}
+                    className={`flex items-center gap-2 px-2 py-1 rounded-sm border transition-all ${
+                      isActive ? 'border-yellow-400/60 bg-yellow-400/10' :
+                      isSelectable ? 'border-white/20 hover:border-white/50 active:bg-white/10' :
+                      isHealTarget ? 'border-green-400/40 hover:border-green-400 active:bg-green-400/10' :
+                      'border-white/5'
+                    } ${isDead ? 'opacity-20' : ''}`}
+                    whileTap={isSelectable || isHealTarget ? { scale: 0.97 } : {}}
+                    onClick={() => {
+                      if (isSelectable) handleCharacterSelect(idx);
+                      if (isHealTarget) handleTargetSelect(char.id);
+                    }}
+                    animate={{ x: attackingActorId === char.id ? [0, 8, -4, 0] : 0 }}
+                  >
+                    <span className="text-sm">{classInfo?.icon || '👤'}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-pixel text-[7px] truncate" style={{
+                          color: isActive ? (classInfo?.accentColor || '#fff') : 'rgba(255,255,255,0.6)',
+                        }}>{char.name}</p>
+                        <span className="font-pixel text-[5px] text-white/30">{char.stats.hp}/{char.stats.maxHp}</span>
+                      </div>
+                      <div className="w-full h-1 bg-white/10 rounded-sm overflow-hidden mt-0.5">
+                        <motion.div className="h-full" initial={false}
+                          animate={{ width: `${hpPercent}%`, backgroundColor: getHpColor(hpPercent) }} />
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Action menu - bottom portion */}
+          <div className="flex-shrink-0 px-2 py-2 flex flex-col justify-center min-h-[80px] bg-black/50">
+            {uiPhase === 'select_character' && (
+              <div className="text-center">
+                <motion.p animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 1.5, repeat: Infinity }}
+                  className="font-pixel text-[8px] text-yellow-400">
+                  {isSpanish ? '¿Quién ataca?' : 'Who attacks?'}
+                </motion.p>
+                <p className="font-pixel text-[6px] text-white/30 mt-1">
+                  {isSpanish ? 'Toca un personaje' : 'Tap a character'}
+                </p>
+              </div>
+            )}
+
+            {uiPhase === 'select_action' && activeChar && (
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  { label: isSpanish ? '⚔ LUCHAR' : '⚔ FIGHT', color: '#ef4444', action: handleFight },
+                  { label: isSpanish ? '★ HAB.' : '★ SKILLS', color: '#eab308', action: () => { sfxSelect(); setUiPhase('select_skill'); } },
+                  { label: isSpanish ? '🛡 DEF' : '🛡 DEF', color: '#3b82f6', action: handleDefend },
+                  { label: isSpanish ? '✖ HUIR' : '✖ FLEE', color: '#a855f7', action: handleFlee },
+                ].map(btn => (
+                  <motion.button key={btn.label} whileTap={{ scale: 0.92 }}
+                    onClick={btn.action}
+                    className="px-2 py-2.5 font-pixel text-[8px] border-2 rounded-sm transition-colors touch-manipulation"
+                    style={{ borderColor: btn.color, color: btn.color, backgroundColor: `${btn.color}10` }}>
+                    {btn.label}
+                  </motion.button>
+                ))}
+              </div>
+            )}
+
+            {uiPhase === 'select_skill' && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-pixel text-[7px] text-white/50">{activeChar?.name}</span>
+                  <button onClick={() => { sfxSelect(); setUiPhase('select_action'); }}
+                    className="font-pixel text-[6px] text-red-400 px-2 py-0.5 border border-red-400/30 rounded-sm touch-manipulation">
+                    {isSpanish ? '← Volver' : '← Back'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-1">
+                  {actorSkills.filter(s => s.id !== 'defend').map(skill => (
+                    <button key={skill.id} onClick={() => handleSkillPick(skill)}
+                      className="px-2 py-1.5 font-pixel text-[6px] text-left border border-white/15 rounded-sm hover:border-yellow-400 touch-manipulation">
+                      <span className="text-yellow-300">{isSpanish ? skill.nameEs : skill.name}</span>
+                      {skill.cost > 0 && <span className="text-white/30 ml-1">({skill.cost})</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {uiPhase === 'select_target' && (
+              <div className="text-center space-y-1">
+                <p className="font-pixel text-[8px] text-yellow-400 animate-pulse">
+                  {selectedSkill?.type === 'heal'
+                    ? (isSpanish ? 'Toca aliado a curar' : 'Tap ally to heal')
+                    : (isSpanish ? 'Toca un enemigo' : 'Tap an enemy')
+                  }
+                </p>
+                <button onClick={() => { sfxSelect(); setUiPhase('select_action'); setSelectedSkill(null); }}
+                  className="font-pixel text-[6px] text-red-400 border border-red-400/40 px-3 py-1 rounded-sm touch-manipulation">
+                  {isSpanish ? 'Cancelar' : 'Cancel'}
+                </button>
+              </div>
+            )}
+
+            {(uiPhase === 'class_minigame' || uiPhase === 'enemy_dodge') && (
+              <div className="text-center">
+                <p className="font-pixel text-[7px] animate-pulse" style={{
+                  color: uiPhase === 'class_minigame' ? '#eab308' : '#ef4444',
+                }}>
+                  {uiPhase === 'class_minigame'
+                    ? (isSpanish ? '¡Completa el minijuego!' : 'Complete the minigame!')
+                    : (isSpanish ? '¡ESQUIVA!' : 'DODGE!')
+                  }
+                </p>
+              </div>
+            )}
+
+            {uiPhase === 'animating' && (
+              <motion.p animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity }}
+                className="font-pixel text-[8px] text-white/50 text-center">
+                {isSpanish ? 'Procesando...' : 'Processing...'}
+              </motion.p>
+            )}
+          </div>
+        </div>
+
+        {/* Floating damage numbers */}
+        <AnimatePresence>
+          {damageNumbers.map(num => (
+            <motion.div key={num.id}
+              initial={{ opacity: 1, y: `${num.y}%`, x: `${num.x}%`, scale: 0.5 }}
+              animate={{ opacity: 0, y: `${num.y - 25}%`, scale: 1.4 }}
+              exit={{ opacity: 0 }} transition={{ duration: 1.5 }}
+              className={`absolute font-pixel text-lg z-50 ${num.isHeal ? 'text-green-400' : 'text-red-400'}`}
+              style={{ textShadow: '2px 2px 0 black, -1px -1px 0 black' }}>
+              {num.isHeal ? '+' : '-'}{num.value}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Attack slash effect */}
+        <AnimatePresence>
+          {attackingActorId && combatState.playerParty.some(p => p.id === attackingActorId) && uiPhase === 'animating' && (
+            <motion.div className="absolute z-30"
+              initial={{ opacity: 0, scale: 0, rotate: -45 }}
+              animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 2, 2, 0], rotate: [-45, 45] }}
+              exit={{ opacity: 0 }} transition={{ duration: 0.5 }}
+              style={{ left: '25%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+              <div className="w-20 h-1.5 bg-white rounded-full" style={{ boxShadow: '0 0 20px 6px rgba(255,255,255,0.7)' }} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Victory / Defeat overlay */}
+        <AnimatePresence>
+          {uiPhase === 'victory' && (
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+              className="absolute inset-0 flex items-center justify-center bg-black/70 z-[110]">
+              <div className="text-center">
+                <motion.p animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 1, repeat: Infinity }}
+                  className="font-pixel text-3xl text-yellow-400" style={{ textShadow: '0 0 25px rgba(234,179,8,0.6)' }}>
+                  {isSpanish ? '¡VICTORIA!' : 'VICTORY!'}
+                </motion.p>
+                <p className="font-pixel text-xs text-white/60 mt-2">★ ★ ★</p>
+              </div>
+            </motion.div>
+          )}
+          {uiPhase === 'defeat' && (
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+              className="absolute inset-0 flex items-center justify-center bg-black/80 z-[110]">
+              <motion.p animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 2, repeat: Infinity }}
+                className="font-pixel text-2xl text-red-500">
+                {isSpanish ? 'DERROTA...' : 'DEFEAT...'}
+              </motion.p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DEFAULT VERTICAL LAYOUT (original)
+  // ═══════════════════════════════════════════════════════════
   return (
     <div className="absolute inset-0 bg-black flex flex-col select-none">
-      {/* === TOP: Enemy Display === */}
       <div className="relative flex-shrink-0 border-b-2 border-white/20 overflow-hidden"
         style={{ height: uiPhase === 'enemy_dodge' || uiPhase === 'class_minigame' ? '65%' : '50%' }}>
         <div className="absolute inset-0 bg-gradient-to-b from-gray-950 via-gray-900 to-black" />

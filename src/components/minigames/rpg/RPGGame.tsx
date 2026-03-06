@@ -11,9 +11,12 @@ import { GameMenu } from './components/GameMenu';
 import { CombatSystem } from './components/CombatSystem';
 import { CharacterSelect } from './components/CharacterSelect';
 import { BattleTransition } from './components/BattleTransition';
+import { LandscapeExploration } from './components/LandscapeExploration';
+import { LandscapeCombat } from './components/LandscapeCombat';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useLandscapeMobile, useIsTouchDevice } from './hooks/useLandscapeMobile';
 import { teleporterConnections } from './data/defaultMap';
 import { generateMapMonsters, monsterRegistry } from './data/monsters';
 import { playBGM, stopBGM, sfxEncounter, sfxSelect, sfxStep } from './systems/RPGAudioManager';
@@ -24,13 +27,14 @@ interface RPGGameProps {
 
 type GameMode = 'menu' | 'character_select' | 'prologue' | 'playing' | 'combat';
 
-// Day/night cycle: 5 minutes = full cycle
 const DAY_CYCLE_MS = 5 * 60 * 1000;
 
 export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
   const { playClick, playHover } = useSoundEffects();
   const { language } = useSettings();
   const isMobile = useIsMobile();
+  const isTouchDevice = useIsTouchDevice();
+  const isLandscape = useLandscapeMobile();
   const isSpanish = language === 'es';
 
   const [gameMode, setGameMode] = useState<GameMode>('menu');
@@ -44,16 +48,27 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
   const pendingCombatRef = useRef<string[]>([]);
 
   // Day/night cycle
-  const [timeOfDay, setTimeOfDay] = useState(0.35); // Start at morning
+  const [timeOfDay, setTimeOfDay] = useState(0.35);
+  const timeOfDayRef = useRef(0.35);
   useEffect(() => {
     if (gameMode !== 'playing') return;
-    const startTime = Date.now() - timeOfDay * DAY_CYCLE_MS;
+    const startTime = Date.now() - timeOfDayRef.current * DAY_CYCLE_MS;
     const interval = setInterval(() => {
       const elapsed = (Date.now() - startTime) % DAY_CYCLE_MS;
-      setTimeOfDay(elapsed / DAY_CYCLE_MS);
-    }, 1000);
+      const t = elapsed / DAY_CYCLE_MS;
+      timeOfDayRef.current = t;
+      setTimeOfDay(t);
+    }, 2000); // Update every 2s instead of 1s for performance
     return () => clearInterval(interval);
   }, [gameMode]);
+
+  // Sleep toggle: toggle day/night instantly
+  const handleSleep = useCallback(() => {
+    const isNight = timeOfDayRef.current < 0.2 || timeOfDayRef.current > 0.8;
+    const newTime = isNight ? 0.35 : 0.9; // If night → morning, if day → night
+    timeOfDayRef.current = newTime;
+    setTimeOfDay(newTime);
+  }, []);
 
   // BGM management
   useEffect(() => {
@@ -68,10 +83,8 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     } else {
       stopBGM();
     }
-    return () => {};
   }, [gameMode]);
 
-  // Cleanup BGM on unmount
   useEffect(() => () => stopBGM(), []);
 
   const {
@@ -87,7 +100,14 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     setHasSaveData(!!saved);
   }, []);
 
-  // Generate monsters when map changes
+  // Check if player interacts with bed → trigger sleep
+  useEffect(() => {
+    if (activeDialogue?.id === 'bed_rest_sleep') {
+      handleSleep();
+    }
+  }, [activeDialogue?.id, handleSleep]);
+
+  // Generate monsters when map changes — adjusted by time of day
   useEffect(() => {
     if (!currentMap || gameMode !== 'playing') return;
     const occupiedTiles = new Set<string>();
@@ -98,7 +118,11 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     });
     const possibleMonsters = currentMap.possibleEncounters || [];
     if (possibleMonsters.length > 0) {
-      const monsterCount = Math.floor(Math.min(15, (currentMap.width * currentMap.height) / 100));
+      const isNight = timeOfDay < 0.2 || timeOfDay > 0.8;
+      const isCave = currentMap.id === 'cave';
+      // Night: more monsters. Day: fewer. Caves: always more.
+      const baseCount = Math.floor(Math.min(15, (currentMap.width * currentMap.height) / 100));
+      const monsterCount = isCave ? baseCount + 5 : isNight ? baseCount + 8 : Math.max(3, baseCount - 3);
       const monsters = generateMapMonsters(currentMap.id, currentMap.width, currentMap.height, possibleMonsters, monsterCount, occupiedTiles);
       setMapMonsters(monsters);
       insertMonstersIntoHash(monsters);
@@ -128,7 +152,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     }
   }, [startBattleWithTransition]);
 
-  // Random encounters
+  // Random encounters — more at night
   const lastEncounterPos = useRef('');
   useEffect(() => {
     if (gameMode !== 'playing' || !currentMap) return;
@@ -136,9 +160,11 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
     if (posKey === lastEncounterPos.current) return;
     lastEncounterPos.current = posKey;
 
+    const isNight = timeOfDay < 0.2 || timeOfDay > 0.8;
     const encounterRate = currentMap.encounterRate || 0;
+    const rateMultiplier = isNight ? 1.5 : 0.4; // Night = way more encounters
     const possibleEncounters = currentMap.possibleEncounters || [];
-    if (encounterRate > 0 && possibleEncounters.length > 0 && Math.random() < encounterRate * 0.5) {
+    if (encounterRate > 0 && possibleEncounters.length > 0 && Math.random() < encounterRate * rateMultiplier) {
       const hostileMonsters = possibleEncounters.filter(id => monsterRegistry[id]?.hostile);
       if (hostileMonsters.length > 0) {
         const randomMonster = hostileMonsters[Math.floor(Math.random() * hostileMonsters.length)];
@@ -148,7 +174,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
         startBattleWithTransition(enemies);
       }
     }
-  }, [gameState.playerPosition, currentMap, gameMode, startBattleWithTransition]);
+  }, [gameState.playerPosition, currentMap, gameMode, startBattleWithTransition, timeOfDay]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); setIsFullscreen(true); }
@@ -192,7 +218,6 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black">
-      {/* Battle Transition overlay */}
       <BattleTransition active={battleTransitionActive} onComplete={handleTransitionComplete} />
 
       <div className="flex flex-col max-w-3xl w-full max-h-[95vh] mx-2" onClick={(e) => e.stopPropagation()}>
@@ -223,7 +248,27 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
           </div>
         )}
 
-        {gameMode === 'playing' && (
+        {gameMode === 'playing' && isLandscape && currentMap && (
+          <LandscapeExploration
+            gameData={gameData} gameState={gameState} currentMap={currentMap}
+            mapMonsters={mapMonsters} onMonsterEncounter={handleMonsterEncounter}
+            spatialHash={spatialHash} isWalking={isWalking}
+            selectedCharacterId={selectedCharacterId} timeOfDay={timeOfDay}
+            activeDialogue={activeDialogue} dialogueIndex={dialogueIndex}
+            displayedText={displayedText} isTyping={isTyping}
+            showGameMenu={showGameMenu} isPaused={isPaused} showModMenu={showModMenu}
+            partyCharacters={partyCharacters} isSpanish={isSpanish}
+            onMove={movePlayer} onInteract={interact} onSelectChoice={selectChoice}
+            onToggleMenu={() => setShowGameMenu(true)} onFullscreen={toggleFullscreen}
+            onSave={() => { playClick(); saveGame(); }}
+            onSettings={() => { playClick(); setShowModMenu(true); }}
+            onClose={() => { playClick(); stopBGM(); onClose(); }}
+            onCloseMenu={() => setShowGameMenu(false)}
+            onUseItem={useItem} onResume={() => setIsPaused(false)}
+          />
+        )}
+
+        {gameMode === 'playing' && !isLandscape && (
           <>
             <div className="flex items-center justify-between p-2 bg-black border-2 border-b-0 border-white/20 rounded-t-sm">
               <div className="flex items-center gap-3">
@@ -234,7 +279,6 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                     <span className="font-pixel text-[7px] text-red-400">{mapMonsters.filter(m => monsterRegistry[m.monsterId]?.hostile).length}</span>
                   </div>
                 )}
-                {/* Time indicator */}
                 <span className="font-pixel text-[7px] text-yellow-400/60">
                   {timeOfDay < 0.2 || timeOfDay > 0.8 ? '🌙' : timeOfDay < 0.3 || timeOfDay > 0.7 ? '🌅' : '☀️'}
                 </span>
@@ -267,13 +311,14 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                 spatialHash={spatialHash} isMobile={isMobile} isWalking={isWalking}
                 selectedCharacterId={selectedCharacterId}
                 timeOfDay={timeOfDay}
+                suppressOverlay={showGameMenu || isPaused}
               />
               {activeDialogue && (
                 <DialogueBox dialogue={activeDialogue} dialogueIndex={dialogueIndex}
                   displayedText={displayedText} isTyping={isTyping} gameData={gameData}
                   onAdvance={interact} onSelectChoice={selectChoice} />
               )}
-              {isMobile && (
+              {(isMobile || isTouchDevice) && (
                 <TouchControls onMove={movePlayer} onInteract={interact}
                   onMenu={() => setShowGameMenu(true)} onFullscreen={toggleFullscreen}
                   disabled={!!showModMenu || isPaused || showGameMenu} />
@@ -283,7 +328,7 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
                   onClose={() => setShowGameMenu(false)} onUseItem={useItem} />
               )}
               {isPaused && !showModMenu && !showGameMenu && (
-                <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-40">
+                <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-[70]">
                   <p className="font-pixel text-xl text-white mb-6">{isSpanish ? 'PAUSA' : 'PAUSED'}</p>
                   <button onClick={() => setIsPaused(false)}
                     className="px-6 py-3 font-pixel text-sm border-2 border-white rounded-sm text-white hover:bg-white/10 transition-colors">
@@ -309,7 +354,17 @@ export const RPGGame: React.FC<RPGGameProps> = ({ onClose }) => {
           </>
         )}
 
-        {gameMode === 'combat' && (
+        {gameMode === 'combat' && isLandscape && (
+          <LandscapeCombat
+            playerParty={partyCharacters}
+            enemies={combatEnemies}
+            onVictory={(exp, gold, items) => { awardCombatRewards(exp, gold, items); setGameMode('playing'); }}
+            onDefeat={() => { setGameMode('menu'); }}
+            onFlee={() => { setGameMode('playing'); }}
+          />
+        )}
+
+        {gameMode === 'combat' && !isLandscape && (
           <div className="relative border-4 border-white/20 bg-black rounded-sm overflow-hidden shadow-2xl" style={{ height: '500px' }}>
             <CombatSystem
               playerParty={partyCharacters}
