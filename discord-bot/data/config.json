@@ -1,0 +1,18 @@
+{
+  "guildId": "",
+  "logsChannelId": null,
+  "autoRoleId": null,
+  "autoRoleEnabled": false,
+  "chatBridgeChannelId": null,
+  "chatBridgeReadOnly": false,
+  "announcementsChannelId": null,
+  "personalityMode": "friki",
+  "gifUrls": {
+    "welcome": "",
+    "ban": "",
+    "ticket": "",
+    "event": ""
+  },
+  "antiSpamExemptChannels": [],
+  "trustedBots": []
+}

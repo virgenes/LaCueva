@@ -1,0 +1,41 @@
+{
+  "name": "discord-bot",
+  "version": "1.0.0",
+  "description": "La Cueva Discord Bot",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:all": "pm2 start ecosystem.config.js",
+    "stop:all": "pm2 stop ecosystem.config.js",
+    "logs": "pm2 logs discord-bot",
+    "dev": "tsx src/index.ts",
+    "test": "vitest --run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "discord.js": "^14.0.0",
+    "@discordjs/voice": "^0.17.0",
+    "@discordjs/rest": "^2.0.0",
+    "express": "^4.18.0",
+    "ws": "^8.16.0",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1",
+    "uuid": "^9.0.0",
+    "dotenv": "^16.4.0",
+    "@distube/ytdl-core": "^4.14.0",
+    "ytsr": "^3.6.0",
+    "node-fetch": "^3.3.0"
+  },
+  "devDependencies": {
+    "fast-check": "^3.15.0",
+    "vitest": "^1.3.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.11.0",
+    "@types/express": "^4.17.21",
+    "@types/ws": "^8.5.10",
+    "@types/uuid": "^9.0.7",
+    "tsx": "^4.7.0"
+  }
+}

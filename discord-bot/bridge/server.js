@@ -1,0 +1,112 @@
+import express from "express";
+import { createServer } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { v4 as uuidv4 } from "uuid";
+import { sanitize } from "../src/utils/sanitize.js";
+import { loadConfig } from "../src/utils/dataStore.js";
+import { logger } from "../src/utils/logger.js";
+import { addMessage, getMessages } from "./messageStore.js";
+import { rateLimiter } from "./rateLimiter.js";
+import { config } from "../src/config.js";
+const MAX_CONTENT_LENGTH = 2000;
+let discordClient = null;
+const wss = new WebSocketServer({ noServer: true });
+/** Register the Discord client so the bridge can post messages to Discord */
+export function setDiscordClient(client) {
+    discordClient = client;
+}
+/** Broadcast a BridgeMessage to all connected WebSocket clients and store it */
+export function broadcast(msg) {
+    addMessage(msg);
+    const payload = JSON.stringify(msg);
+    wss.clients.forEach((ws) => {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(payload);
+        }
+    });
+}
+export function createBridgeServer() {
+    const app = express();
+    // CORS
+    const corsOrigin = config.BRIDGE_CORS_ORIGIN ?? "*";
+    app.use((_req, res, next) => {
+        res.setHeader("Access-Control-Allow-Origin", corsOrigin);
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        next();
+    });
+    app.options("*", (_req, res) => res.sendStatus(204));
+    app.use(express.json({ limit: "8kb" }));
+    // GET /api/messages?limit=50
+    app.get("/api/messages", (req, res) => {
+        const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10) || 50, 50);
+        res.json(getMessages(limit));
+    });
+    // POST /api/messages — web → Discord
+    app.post("/api/messages", rateLimiter, async (req, res) => {
+        // Determine read-only mode from any guild config (single-guild assumption for bridge)
+        const guildId = config.GUILD_ID;
+        const cfg = guildId ? loadConfig(guildId) : null;
+        if (cfg?.chatBridgeReadOnly) {
+            res.status(403).json({ error: "Bridge is in read-only mode." });
+            return;
+        }
+        const { author, content } = req.body;
+        if (!author || typeof author !== "string" || author.trim().length === 0) {
+            res.status(400).json({ error: "author is required." });
+            return;
+        }
+        if (!content || typeof content !== "string" || content.trim().length === 0) {
+            res.status(400).json({ error: "content is required." });
+            return;
+        }
+        const cleanContent = sanitize(content.trim());
+        const cleanAuthor = sanitize(author.trim()).slice(0, 32);
+        if (cleanContent.length > MAX_CONTENT_LENGTH) {
+            res.status(400).json({ error: `Message exceeds ${MAX_CONTENT_LENGTH} characters.` });
+            return;
+        }
+        const msg = {
+            id: uuidv4(),
+            author: cleanAuthor,
+            content: cleanContent,
+            source: "web",
+            timestamp: new Date().toISOString(),
+        };
+        // Broadcast to WebSocket clients
+        broadcast(msg);
+        // Post to Discord channel
+        if (discordClient && cfg?.chatBridgeChannelId) {
+            try {
+                const channel = await discordClient.channels.fetch(cfg.chatBridgeChannelId);
+                if (channel?.isTextBased() && "send" in channel) {
+                    await channel.send(`**[Web] ${cleanAuthor}:** ${cleanContent}`);
+                }
+            }
+            catch (err) {
+                logger.error("[bridge] Failed to post message to Discord:", err);
+            }
+        }
+        res.status(201).json(msg);
+    });
+    const httpServer = createServer(app);
+    // Upgrade HTTP → WebSocket
+    httpServer.on("upgrade", (request, socket, head) => {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+            wss.emit("connection", ws, request);
+        });
+    });
+    wss.on("connection", (ws) => {
+        logger.info("[bridge] WebSocket client connected");
+        ws.on("close", () => logger.info("[bridge] WebSocket client disconnected"));
+        ws.on("error", (err) => logger.error("[bridge] WebSocket error:", err));
+    });
+    return httpServer;
+}
+export function startBridgeServer(port = config.BRIDGE_PORT) {
+    const server = createBridgeServer();
+    server.listen(port, () => {
+        logger.info(`[bridge] Server listening on port ${port}`);
+    });
+}
+//# sourceMappingURL=server.js.map
