@@ -1,11 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ExternalLink, Users, Terminal } from "lucide-react";
+import { ArrowLeft, ExternalLink, Users, Terminal, MessageSquare } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { StarBackground } from "@/components/StarBackground";
+import { ChatBridge } from "@/components/ChatBridge";
 
 const GUILD_ID = "1082764297106636820";
-const CHANNEL_ID = "1083137376072765521";
-const INVITE_URL = "https://discord.gg/lacueva";
 
 const DiscordPage = () => {
   const navigate = useNavigate();
@@ -202,7 +201,7 @@ const DiscordPage = () => {
                   📋 CANALES DESTACADOS
                 </h3>
                 {[
-                  { emoji: "👋", name: "𝑪𝒉𝒂𝒕", desc: "Chat general de la comunidad", id: CHANNEL_ID },
+                  { emoji: "👋", name: "𝑪𝒉𝒂𝒕", desc: "Chat general de la comunidad" },
                   { emoji: "🎮", name: "juegos", desc: "Habla de videojuegos" },
                   { emoji: "🎵", name: "música", desc: "Comparte lo que escuchas" },
                   { emoji: "📢", name: "anuncios", desc: "Novedades del servidor" },
@@ -246,20 +245,35 @@ const DiscordPage = () => {
             </div>
           </div>
 
-          {/* Footer note */}
-          <p
-            className="text-center mt-6"
-            style={{
-              fontFamily: '"VT323", monospace',
-              fontSize: "14px",
-              color: "#333",
-            }}
-          >
-            El chat en tiempo real bidireccional estará disponible próximamente · ChatBridge v1.0
-          </p>
+          {/* ChatBridge — chat en tiempo real con Discord */}
+          <div className="mt-6">
+            <div
+              style={{
+                background: "#1a1a2e",
+                borderBottom: "2px solid #7289da",
+                padding: "8px 14px",
+                fontFamily: '"Press Start 2P", monospace',
+                fontSize: "8px",
+                color: "#7289da",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                borderRadius: "4px 4px 0 0",
+                border: "2px solid #7289da",
+                borderBottomWidth: "0",
+              }}
+            >
+              <MessageSquare size={12} />
+              CHAT EN VIVO — #𝑪𝒉𝒂𝒕
+              <span style={{ marginLeft: "auto", color: "#72767d", fontFamily: '"VT323", monospace', fontSize: "14px" }}>
+                Los mensajes se envían al canal de Discord y viceversa
+              </span>
+            </div>
+            <ChatBridge />
+          </div>
 
           {/* Commands link */}
-          <div className="flex justify-center mt-4">
+          <div className="flex justify-center mt-6">
             <button
               onClick={() => navigate("/bot-commands")}
               className="flex items-center gap-2 transition-all hover:opacity-80"
