@@ -6,6 +6,7 @@ import { SiteUpdates } from '@/components/SiteUpdates';
 import { ForYouSection } from '@/components/ForYouSection';
 import { AboutSection } from '@/components/AboutSection';
 import { Footer } from '@/components/Footer';
+import { DiscordPreview } from '@/components/DiscordPreview';
 import { StarBackground } from '@/components/StarBackground';
 import { MusicPlayer } from '@/components/MusicPlayer';
 import { MusicNotification } from '@/components/MusicNotification';
@@ -49,6 +50,7 @@ const Index = () => {
 
               <div className="lg:col-span-1">
                 <ForYouSection />
+                <DiscordPreview />
               </div>
             </div>
 

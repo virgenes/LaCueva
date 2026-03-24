@@ -141,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
               <span className="font-retro text-sm text-foreground">YouTube</span>
             </button>
             <button 
-              onClick={() => handleExternalLink('https://discord.gg/PFvsgRvfYd')}
+              onClick={() => handleNavigation('/discord')}
               onMouseEnter={playHover}
               className="flex items-center gap-2 px-3 py-2 bg-muted rounded-sm border-2 border-border
                 hover:border-indigo-500 hover:shadow-[0_0_10px_rgba(99,102,241,0.5)] hover:-translate-y-0.5
