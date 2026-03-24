@@ -15,6 +15,7 @@ import ArtPage from "./pages/ArtPage";
 import MusicPage from "./pages/MusicPage";
 import NotFound from "./pages/NotFound";
 import RPGPage from "./pages/RPGPage";
+import DiscordPage from "./pages/DiscordPage";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const AnimatedRoutes = () => {
         <Route path="/arte" element={<ArtPage />} />
         <Route path="/musica" element={<MusicPage />} />
         <Route path="/rpg" element={<RPGPage />} />
+        <Route path="/discord" element={<DiscordPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
