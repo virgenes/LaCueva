@@ -13,6 +13,7 @@ RUN npm run build
 # Remove dev dependencies after build
 RUN npm prune --production
 
-EXPOSE 3001
+# Render uses dynamic PORT; expose it
+EXPOSE 10000
 
 CMD ["node", "dist/index.js"]

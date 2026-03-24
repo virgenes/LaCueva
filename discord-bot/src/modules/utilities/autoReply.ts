@@ -7,30 +7,13 @@ import {
   type SlashCommandSubcommandBuilder,
   type SlashCommandStringOption,
 } from "discord.js";
-import { readData, writeData } from "../../utils/dataStore.js";
+import { readData, writeData, loadConfig } from "../../utils/dataStore.js";
 import { buildEmbed } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
-import type { GuildConfig } from "../../types/index.js";
 
 const AUTO_REPLIES_FILE = "autoReplies.json";
 
 type AutoRepliesStore = Record<string, string>;
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 function loadReplies(): AutoRepliesStore {
   return readData<AutoRepliesStore>(AUTO_REPLIES_FILE, {});
@@ -89,7 +72,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction): Promise<void
   replies[trigger] = response;
   saveReplies(replies);
 
-  const config = loadConfig();
+  const config = loadConfig(interaction.guild?.id ?? "");
   const mode = config.personalityMode;
 
   const confirmMsg = getMessage(
@@ -138,7 +121,7 @@ async function handleRemove(interaction: ChatInputCommandInteraction): Promise<v
   delete replies[trigger];
   saveReplies(replies);
 
-  const config = loadConfig();
+  const config = loadConfig(interaction.guild?.id ?? "");
   const mode = config.personalityMode;
 
   const confirmMsg = getMessage(

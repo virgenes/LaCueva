@@ -1,18 +1,20 @@
 {
-  "guildId": "",
-  "logsChannelId": null,
-  "autoRoleId": null,
-  "autoRoleEnabled": false,
-  "chatBridgeChannelId": null,
-  "chatBridgeReadOnly": false,
-  "announcementsChannelId": null,
-  "personalityMode": "friki",
-  "gifUrls": {
-    "welcome": "",
-    "ban": "",
-    "ticket": "",
-    "event": ""
-  },
-  "antiSpamExemptChannels": [],
-  "trustedBots": []
+  "1082764297106636820": {
+    "guildId": "1082764297106636820",
+    "logsChannelId": null,
+    "autoRoleId": null,
+    "autoRoleEnabled": false,
+    "chatBridgeChannelId": "1083137376072765521",
+    "chatBridgeReadOnly": false,
+    "announcementsChannelId": null,
+    "personalityMode": "friki",
+    "gifUrls": {
+      "welcome": "",
+      "ban": "",
+      "ticket": "",
+      "event": ""
+    },
+    "antiSpamExemptChannels": [],
+    "trustedBots": []
+  }
 }

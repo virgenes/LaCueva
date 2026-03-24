@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: lacueva-bot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: CLIENT_ID
+        sync: false
+      - key: GUILD_ID
+        sync: false
+      - key: BRIDGE_CORS_ORIGIN
+        value: "*"
+      - key: NODE_ENV
+        value: production

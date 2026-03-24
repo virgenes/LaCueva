@@ -17,7 +17,8 @@ export const config = {
   DISCORD_TOKEN: requireEnv("DISCORD_TOKEN"),
   CLIENT_ID: optionalEnv("CLIENT_ID"),
   GUILD_ID: optionalEnv("GUILD_ID"),
-  BRIDGE_PORT: parseInt(optionalEnv("BRIDGE_PORT", "3001") ?? "3001", 10),
+  // Render injects PORT; fall back to BRIDGE_PORT, then 3001
+  BRIDGE_PORT: parseInt(process.env["PORT"] ?? optionalEnv("BRIDGE_PORT", "3001") ?? "3001", 10),
   BRIDGE_SECRET: optionalEnv("BRIDGE_SECRET"),
   BRIDGE_CORS_ORIGIN: optionalEnv("BRIDGE_CORS_ORIGIN"),
   YOUTUBE_API_KEY: optionalEnv("YOUTUBE_API_KEY"),

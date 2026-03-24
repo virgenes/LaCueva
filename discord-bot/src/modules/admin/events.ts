@@ -6,11 +6,10 @@ import {
   GuildScheduledEventEntityType,
   GuildScheduledEventPrivacyLevel,
 } from "discord.js";
-import { readData, writeData } from "../../utils/dataStore.js";
+import { readData, writeData, loadConfig } from "../../utils/dataStore.js";
 import { buildEmbed, EMBED_COLORS } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
 import { logAction } from "./auditLog.js";
-import type { GuildConfig } from "../../types/index.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,22 +33,6 @@ interface EventsStore {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 function loadEvents(): EventsStore {
   return readData<EventsStore>("events.json", { events: [] });
@@ -104,7 +87,7 @@ export function startReminderScheduler(
         const client = getClient();
         try {
           const guild = await client.guilds.fetch(event.guildId);
-          const config = loadConfig();
+          const config = loadConfig(event.guildId);
 
           if (!config.announcementsChannelId) continue;
           const ch = await guild.channels.fetch(config.announcementsChannelId);
@@ -235,7 +218,7 @@ async function handleCreate(interaction: ChatInputCommandInteraction): Promise<v
 
   await interaction.deferReply();
 
-  const config = loadConfig();
+  const config = loadConfig(guild.id);
   const mode = config.personalityMode;
 
   // Create Discord Guild Scheduled Event
@@ -372,7 +355,7 @@ async function handleCancel(interaction: ChatInputCommandInteraction): Promise<v
   event.cancelled = true;
   saveEvents(store);
 
-  const config = loadConfig();
+  const config = loadConfig(guild.id);
   const mode = config.personalityMode;
 
   // Delete announcement message

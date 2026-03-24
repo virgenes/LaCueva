@@ -26,6 +26,7 @@ const Index = () => {
           <AnnouncementCard />
           <SiteUpdates />
           <ForYouSection />
+          <DiscordPreview />
           <AboutSection />
           <Footer />
         </div>

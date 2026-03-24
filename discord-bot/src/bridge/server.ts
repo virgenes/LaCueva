@@ -96,11 +96,19 @@ export function createBridgeServer(): ReturnType<typeof createServer> {
     broadcast(msg);
 
     // Post to Discord channel
-    if (discordClient && cfg?.chatBridgeChannelId) {
+    if (!discordClient) {
+      logger.warn("[bridge] discordClient not set — bot may not be ready yet");
+    } else if (!cfg?.chatBridgeChannelId) {
+      logger.warn(`[bridge] chatBridgeChannelId not configured for guild ${guildId}`);
+    } else {
       try {
+        logger.info(`[bridge] Posting to channel ${cfg.chatBridgeChannelId}`);
         const channel = await discordClient.channels.fetch(cfg.chatBridgeChannelId);
         if (channel?.isTextBased() && "send" in channel) {
           await channel.send(`**[Web] ${cleanAuthor}:** ${cleanContent}`);
+          logger.info("[bridge] Message posted to Discord successfully");
+        } else {
+          logger.warn("[bridge] Channel not found or not text-based");
         }
       } catch (err) {
         logger.error("[bridge] Failed to post message to Discord:", err);

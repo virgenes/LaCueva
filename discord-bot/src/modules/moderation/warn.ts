@@ -9,12 +9,11 @@ import {
   type SlashCommandStringOption,
 } from "discord.js";
 import { v4 as uuidv4 } from "uuid";
-import { readData, writeData } from "../../utils/dataStore.js";
+import { readData, writeData, loadConfig } from "../../utils/dataStore.js";
 import { buildEmbed, EMBED_COLORS } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
 import { logAction } from "../admin/auditLog.js";
-import type { Warn, GuildConfig } from "../../types/index.js";
-
+import type { Warn } from "../../types/index.js";
 type WarnsStore = Record<string, Warn[]>;
 
 function loadWarns(): WarnsStore {
@@ -23,22 +22,6 @@ function loadWarns(): WarnsStore {
 
 function saveWarns(store: WarnsStore): void {
   writeData("warns.json", store);
-}
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
 }
 
 /** Returns all active warns for a member. */
@@ -73,10 +56,8 @@ export async function addWarn(
   saveWarns(store);
 
   const activeWarns = store[memberId].filter((w) => w.active);
-  const config = loadConfig();
+  const config = loadConfig(guild.id);
   const mode = config.personalityMode;
-
-  // Notify member by DM
   try {
     const member = await guild.members.fetch(memberId);
     const dmMsg = getMessage(

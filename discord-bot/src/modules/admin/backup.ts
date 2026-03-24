@@ -7,14 +7,11 @@ import {
   type GuildChannel,
   type Role,
 } from "discord.js";
-import { readData } from "../../utils/dataStore.js";
+import { loadConfig } from "../../utils/dataStore.js";
 import { buildEmbed } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
 import { logAction } from "./auditLog.js";
 import { progressBar } from "../../utils/progressBar.js";
-import type { GuildConfig } from "../../types/index.js";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ChannelPermission {
   roleId: string;
@@ -51,22 +48,6 @@ export interface BackupData {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 function isValidBackup(data: unknown): data is BackupData {
   if (typeof data !== "object" || data === null) return false;
@@ -226,7 +207,7 @@ async function handleCreate(interaction: ChatInputCommandInteraction): Promise<v
     return;
   }
 
-  const config = loadConfig();
+  const config = loadConfig(guild.id);
   const mode = config.personalityMode;
   const msg = getMessage("backupCreate", { member: interaction.user.username }, mode);
 
@@ -325,7 +306,7 @@ async function handleRestore(interaction: ChatInputCommandInteraction): Promise<
     }
   }
 
-  const config = loadConfig();
+  const config = loadConfig(guild.id);
   const mode = config.personalityMode;
   const msg = getMessage("backupRestore", { member: interaction.user.username }, mode);
 

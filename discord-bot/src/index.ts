@@ -18,13 +18,16 @@ async function main(): Promise<void> {
   // Wire chatbridge → bridge broadcast
   setBroadcast(broadcast);
 
-  await client.login(config.DISCORD_TOKEN);
+  // Start bridge server before login so port is ready
+  startBridgeServer(config.BRIDGE_PORT);
 
-  // Start bridge server after login so client is ready
-  client.once("clientReady", () => {
-    setDiscordClient(client);
-    startBridgeServer(config.BRIDGE_PORT);
+  // Wire Discord client as soon as it's ready
+  client.once("clientReady", (readyClient) => {
+    setDiscordClient(readyClient);
+    console.log(`[bot] Discord client ready: ${readyClient.user.tag}`);
   });
+
+  await client.login(config.DISCORD_TOKEN);
 }
 
 main().catch((err) => {

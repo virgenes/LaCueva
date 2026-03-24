@@ -8,26 +8,9 @@ import {
   type SlashCommandSubcommandBuilder,
   type SlashCommandStringOption,
 } from "discord.js";
-import { readData } from "../../utils/dataStore.js";
+import { loadConfig } from "../../utils/dataStore.js";
 import { buildEmbed, EMBED_COLORS } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
-import type { GuildConfig } from "../../types/index.js";
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 // Numeric emoji reactions for up to 5 options
 const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"];
@@ -109,7 +92,7 @@ async function handleCreate(interaction: ChatInputCommandInteraction): Promise<v
     return;
   }
 
-  const config = loadConfig();
+  const config = loadConfig(interaction.guild?.id ?? "");
   const mode = config.personalityMode;
 
   const optionLines = options
@@ -274,7 +257,7 @@ async function handleClose(interaction: ChatInputCommandInteraction): Promise<vo
   // Remove from active polls
   activePolls.delete(messageId);
 
-  const config = loadConfig();
+  const config = loadConfig(interaction.guild?.id ?? "");
   const mode = config.personalityMode;
 
   const confirmMsg = getMessage(

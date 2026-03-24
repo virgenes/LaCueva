@@ -13,27 +13,10 @@ import {
   ComponentType,
   OverwriteType,
 } from "discord.js";
-import { readData } from "../../utils/dataStore.js";
+import { loadConfig } from "../../utils/dataStore.js";
 import { buildEmbed, EMBED_COLORS } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
 import { logAction } from "../admin/auditLog.js";
-import type { GuildConfig } from "../../types/index.js";
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 // Track open tickets: memberId → channelId
 const openTickets = new Map<string, string>();
@@ -121,7 +104,7 @@ async function handleClose(interaction: ChatInputCommandInteraction): Promise<vo
     .map((m) => `**${m.author.username}** (${new Date(m.createdTimestamp).toLocaleString("es-ES")}): ${m.content}`)
     .join("\n");
 
-  const config = loadConfig();
+  const config = loadConfig(interaction.guild?.id ?? "");
   const mode = config.personalityMode;
 
   // Send DM summary to ticket owner
@@ -207,7 +190,7 @@ export async function handleTicketButton(interaction: ButtonInteraction): Promis
 
   await interaction.deferReply({ ephemeral: true });
 
-  const config = loadConfig();
+  const config = loadConfig(interaction.guild?.id ?? "");
   const mode = config.personalityMode;
 
   // Find roles with MANAGE_CHANNELS permission

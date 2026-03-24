@@ -5,34 +5,16 @@ import {
   TextChannel,
   type SlashCommandRoleOption,
 } from "discord.js";
-import { readData, writeData } from "../../utils/dataStore.js";
-import { buildEmbed } from "../../utils/embeds.js";
+import { loadConfig, saveConfig } from "../../utils/dataStore.js";import { buildEmbed } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
 import { logAction } from "./auditLog.js";
-import type { GuildConfig } from "../../types/index.js";
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 /**
  * Assigns the configured AutoRole to a new guild member.
  * Called from eventHandler on guildMemberAdd.
  */
 export async function autoRole(member: GuildMember): Promise<void> {
-  const config = loadConfig();
+  const config = loadConfig(member.guild.id);
 
   if (!config.autoRoleEnabled || !config.autoRoleId) return;
 
@@ -81,14 +63,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const sub = interaction.options.getSubcommand();
-  const config = loadConfig();
+  const config = loadConfig(interaction.guild.id);
   const mode = config.personalityMode;
 
   if (sub === "set") {
     const role = interaction.options.getRole("rol", true);
     config.autoRoleId = role.id;
     config.autoRoleEnabled = true;
-    writeData("config.json", config);
+    saveConfig(config);
 
     await logAction(
       "AutoRole configurado",
@@ -109,7 +91,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     });
   } else if (sub === "disable") {
     config.autoRoleEnabled = false;
-    writeData("config.json", config);
+    saveConfig(config);
 
     await logAction(
       "AutoRole desactivado",

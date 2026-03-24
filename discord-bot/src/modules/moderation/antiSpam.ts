@@ -1,36 +1,19 @@
 import { Message, TextChannel } from "discord.js";
-import { readData } from "../../utils/dataStore.js";
+import { loadConfig } from "../../utils/dataStore.js";
 import { logAction } from "../admin/auditLog.js";
-import type { GuildConfig } from "../../types/index.js";
 
 interface UserSpamEntry {
-  timestamps: number[];       // message timestamps in ms
-  recentContents: string[];   // last N message contents for duplicate detection
+  timestamps: number[];
+  recentContents: string[];
 }
 
 // In-memory spam tracking: Map<channelId, Map<userId, UserSpamEntry>>
 const spamMap = new Map<string, Map<string, UserSpamEntry>>();
 
-const RATE_WINDOW_MS = 5_000;   // 5 seconds
-const RATE_THRESHOLD = 5;       // 5+ messages triggers rate spam
-const DUP_THRESHOLD = 3;        // 3+ consecutive duplicates triggers dup spam
+const RATE_WINDOW_MS = 5_000;
+const RATE_THRESHOLD = 5;
+const DUP_THRESHOLD = 3;
 const TIMEOUT_SECONDS = 60;
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 /**
  * Anti-spam event handler. Call from messageCreate event.
@@ -43,7 +26,7 @@ export async function antiSpam(message: Message): Promise<void> {
   if (!message.guild) return;
   if (!message.channel.isTextBased()) return;
 
-  const config = loadConfig();
+  const config = loadConfig(message.guild.id);
 
   // Check exempt channels
   if (config.antiSpamExemptChannels.includes(message.channelId)) return;

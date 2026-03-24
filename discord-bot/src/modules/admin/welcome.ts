@@ -1,31 +1,14 @@
 import { GuildMember, TextChannel, EmbedBuilder, ChannelType } from "discord.js";
-import { readData } from "../../utils/dataStore.js";
+import { loadConfig } from "../../utils/dataStore.js";
 import { EMBED_COLORS } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
-import type { GuildConfig } from "../../types/index.js";
-
-function loadConfig(): GuildConfig {
-  return readData<GuildConfig>("config.json", {
-    guildId: "",
-    logsChannelId: null,
-    autoRoleId: null,
-    autoRoleEnabled: false,
-    chatBridgeChannelId: null,
-    chatBridgeReadOnly: false,
-    announcementsChannelId: null,
-    personalityMode: "friki",
-    gifUrls: { welcome: "", ban: "", ticket: "", event: "" },
-    antiSpamExemptChannels: [],
-    trustedBots: [],
-  });
-}
 
 /**
  * Sends a welcome embed to the announcements channel (or first available text channel)
  * when a new member joins the guild.
  */
 export async function welcomeMessage(member: GuildMember): Promise<void> {
-  const config = loadConfig();
+  const config = loadConfig(member.guild.id);
   const mode = config.personalityMode;
 
   // Resolve target channel: announcements > first text channel

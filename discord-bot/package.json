@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
+    "start:prod": "sh start.sh",
     "start:all": "pm2 start ecosystem.config.js",
     "stop:all": "pm2 stop ecosystem.config.js",
     "logs": "pm2 logs discord-bot",
