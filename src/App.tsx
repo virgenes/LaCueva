@@ -16,6 +16,7 @@ import MusicPage from "./pages/MusicPage";
 import NotFound from "./pages/NotFound";
 import RPGPage from "./pages/RPGPage";
 import DiscordPage from "./pages/DiscordPage";
+import BotCommandsPage from "./pages/BotCommandsPage";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const AnimatedRoutes = () => {
         <Route path="/musica" element={<MusicPage />} />
         <Route path="/rpg" element={<RPGPage />} />
         <Route path="/discord" element={<DiscordPage />} />
+        <Route path="/bot-commands" element={<BotCommandsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
