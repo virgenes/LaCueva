@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist --branch gh-pages",
-    "fix-deploy": "npm run build && cp dist/index.html dist/404.html && npm run deploy"
+    "fix-deploy": "npm run build && node -e \"require('fs').copyFileSync('dist/index.html','dist/404.html')\" && npm run deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
