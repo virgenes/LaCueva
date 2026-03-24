@@ -24,19 +24,23 @@ async function main(): Promise<void> {
     console.log(`[bot] Discord client ready: ${readyClient.user.tag}`);
   });
 
-  // Load and register commands, then login
+  // Load commands and login — register commands in background after ready
   const commands = await loadCommands();
-  await registerCommands(commands);
   registerEvents(client, commands);
 
   console.log("[bot] Attempting Discord login...");
   try {
     await client.login(config.DISCORD_TOKEN);
-    console.log("[bot] Login successful");
+    console.log("[bot] Login call completed");
   } catch (err) {
     console.error("[bot] Login FAILED:", err);
     process.exit(1);
   }
+
+  // Register slash commands after login (non-blocking)
+  registerCommands(commands).catch((err) => {
+    console.error("[bot] Failed to register commands:", err);
+  });
 }
 
 main().catch((err) => {
