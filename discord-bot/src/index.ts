@@ -29,7 +29,14 @@ async function main(): Promise<void> {
   await registerCommands(commands);
   registerEvents(client, commands);
 
-  await client.login(config.DISCORD_TOKEN);
+  console.log("[bot] Attempting Discord login...");
+  try {
+    await client.login(config.DISCORD_TOKEN);
+    console.log("[bot] Login successful");
+  } catch (err) {
+    console.error("[bot] Login FAILED:", err);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {
