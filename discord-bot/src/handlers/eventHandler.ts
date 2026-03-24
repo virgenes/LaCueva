@@ -18,24 +18,26 @@ export function registerEvents(
 
   // messageCreate
   client.on("messageCreate", async (message: Message) => {
+    // chatbridge handles bots internally (trusted bots), run it always
+    const { chatbridge } = await import("../modules/chatbridge/chatbridge.js");
+    await chatbridge(message);
+
+    // Skip moderation/autoReply for bots
     if (message.author.bot) return;
 
     const [
       { wordFilter },
       { antiSpam },
       { autoReply },
-      { chatbridge },
     ] = await Promise.all([
       import("../modules/moderation/wordFilter.js"),
       import("../modules/moderation/antiSpam.js"),
       import("../modules/utilities/autoReply.js"),
-      import("../modules/chatbridge/chatbridge.js"),
     ]);
 
     await wordFilter(message);
     await antiSpam(message);
     await autoReply(message);
-    await chatbridge(message);
   });
 
   // guildMemberAdd

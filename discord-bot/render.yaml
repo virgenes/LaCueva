@@ -4,6 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
+    healthCheckPath: /api/messages
     envVars:
       - key: DISCORD_TOKEN
         sync: false

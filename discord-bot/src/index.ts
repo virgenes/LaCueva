@@ -11,21 +11,23 @@ process.on("unhandledRejection", (reason) => {
 });
 
 async function main(): Promise<void> {
-  const commands = await loadCommands();
-  await registerCommands(commands);
-  registerEvents(client, commands);
+  // Start bridge server FIRST so Render detects the open port immediately
+  startBridgeServer(config.BRIDGE_PORT);
+  console.log(`[bot] Bridge server started on port ${config.BRIDGE_PORT}`);
 
   // Wire chatbridge → bridge broadcast
   setBroadcast(broadcast);
-
-  // Start bridge server before login so port is ready
-  startBridgeServer(config.BRIDGE_PORT);
 
   // Wire Discord client as soon as it's ready
   client.once("clientReady", (readyClient) => {
     setDiscordClient(readyClient);
     console.log(`[bot] Discord client ready: ${readyClient.user.tag}`);
   });
+
+  // Load and register commands, then login
+  const commands = await loadCommands();
+  await registerCommands(commands);
+  registerEvents(client, commands);
 
   await client.login(config.DISCORD_TOKEN);
 }

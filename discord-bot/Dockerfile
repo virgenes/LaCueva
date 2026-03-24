@@ -2,18 +2,19 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
+# Install all deps (including dev for build)
 COPY package*.json ./
-RUN npm ci --only=production=false
+RUN npm ci
 
-# Copy source and build
+# Copy source and build TypeScript
 COPY . .
 RUN npm run build
 
 # Remove dev dependencies after build
 RUN npm prune --production
 
-# Render uses dynamic PORT; expose it
-EXPOSE 10000
+# Render injects PORT dynamically — no hardcoded EXPOSE needed
+# but we expose 3001 as default for local use
+EXPOSE 3001
 
 CMD ["node", "dist/index.js"]
