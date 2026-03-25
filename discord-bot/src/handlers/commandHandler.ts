@@ -19,7 +19,8 @@ async function collectFiles(dir: string): Promise<string[]> {
       files.push(...nested);
     } else {
       const ext = extname(entry);
-      if (ext === ".ts" || ext === ".js") {
+      // Only load .js files (compiled output) — skip .d.ts declaration files and .ts source files
+      if (ext === ".js" && !entry.endsWith(".d.ts")) {
         files.push(fullPath);
       }
     }
@@ -74,7 +75,9 @@ export async function registerCommands(
   }
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
-  const body = commands.map((cmd: SlashCommand) => cmd.data.toJSON());
+  const body = commands
+    .filter((cmd) => typeof cmd.data.toJSON === "function")
+    .map((cmd: SlashCommand) => cmd.data.toJSON());
 
   await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body });
   console.log(`[commandHandler] Registered ${body.length} slash command(s).`);

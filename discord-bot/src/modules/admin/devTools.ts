@@ -32,7 +32,11 @@ const inviteCommand = new SlashCommandBuilder()
   .setName("invite")
   .setDescription("Muestra el enlace de invitación del bot");
 
-export const data = [evalCommand, pingCommand, inviteCommand];
+export const commands = [
+  { data: evalCommand, execute },
+  { data: pingCommand, execute },
+  { data: inviteCommand, execute },
+];
 
 // ─── execute ──────────────────────────────────────────────────────────────────
 

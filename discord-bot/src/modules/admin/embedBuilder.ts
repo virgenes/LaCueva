@@ -35,7 +35,10 @@ const sayCommand = new SlashCommandBuilder()
       .setRequired(false)
   );
 
-export const data = [embedCommand, sayCommand];
+export const commands = [
+  { data: embedCommand, execute },
+  { data: sayCommand, execute },
+];
 
 export async function execute(
   interaction: ChatInputCommandInteraction

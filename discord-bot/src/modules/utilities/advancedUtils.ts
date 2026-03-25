@@ -309,14 +309,6 @@ async function handleShorten(interaction: ChatInputCommandInteraction): Promise<
 
 // ─── Exports ─────────────────────────────────────────────────────────────────
 
-export const commands = [
-  translateCommand,
-  weatherCommand,
-  urbanCommand,
-  qrCommand,
-  shortenCommand,
-];
-
 const handlers: Record<string, (i: ChatInputCommandInteraction) => Promise<void>> = {
   translate: handleTranslate,
   weather: handleWeather,
@@ -325,7 +317,15 @@ const handlers: Record<string, (i: ChatInputCommandInteraction) => Promise<void>
   shorten: handleShorten,
 };
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const handler = handlers[interaction.commandName];
   if (handler) await handler(interaction);
 }
+
+export const commands = [
+  { data: translateCommand, execute },
+  { data: weatherCommand, execute },
+  { data: urbanCommand, execute },
+  { data: qrCommand, execute },
+  { data: shortenCommand, execute },
+];

@@ -5,12 +5,17 @@ import { loadCommands, registerCommands } from "./handlers/commandHandler.js";
 import { registerEvents } from "./handlers/eventHandler.js";
 import { startBridgeServer, broadcast, setDiscordClient } from "./bridge/server.js";
 import { setBroadcast } from "./modules/chatbridge/chatbridge.js";
+import { initDb } from "./utils/database.js";
 
 process.on("unhandledRejection", (reason) => {
   console.error("[bot] Unhandled rejection:", reason);
 });
 
 async function main(): Promise<void> {
+  // Initialize SQLite database and create all tables
+  initDb();
+  console.log("[bot] Database initialized");
+
   // Start bridge server FIRST so Render detects the open port immediately
   startBridgeServer(config.BRIDGE_PORT);
   console.log(`[bot] Bridge server started on port ${config.BRIDGE_PORT}`);
