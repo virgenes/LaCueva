@@ -56,6 +56,13 @@ export function registerEvents(
       return;
     }
 
+    // AutoRole buttons (ar: normal roles, arc: color roles)
+    if (interaction.isButton() && (interaction.customId.startsWith("ar:") || interaction.customId.startsWith("arc:"))) {
+      const { handleAutoRoleButton } = await import("../modules/admin/autoroles.js");
+      await handleAutoRoleButton(interaction);
+      return;
+    }
+
     await handleInteraction(interaction, commands);
   });
 
