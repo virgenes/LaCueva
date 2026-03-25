@@ -16,15 +16,13 @@ import {
   type ButtonInteraction,
 } from "discord.js";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const EDITOR_TEXT_CHANNEL_ID  = "1486431632582905906";
 const JTC_VOICE_CHANNEL_ID    = "1486431967619710977";
 
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const BANNER_PATH = join(__dirname, "..", "assets", "canvas.png");
+const BANNER_PATH = join(process.cwd(), "src", "assets", "canvas.png");
 
 // Map: userId → their temporary voice channel ID
 const tempChannels = new Map<string, string>();
