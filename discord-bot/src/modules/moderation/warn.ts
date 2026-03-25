@@ -3,36 +3,131 @@ import {
   ChatInputCommandInteraction,
   Guild,
   GuildMember,
-  EmbedBuilder,
+  AttachmentBuilder,
+  PermissionFlagsBits,
   type SlashCommandSubcommandBuilder,
   type SlashCommandUserOption,
   type SlashCommandStringOption,
 } from "discord.js";
 import { v4 as uuidv4 } from "uuid";
-import { readData, writeData, loadConfig } from "../../utils/dataStore.js";
-import { buildEmbed, EMBED_COLORS } from "../../utils/embeds.js";
+import { getDb } from "../../utils/database.js";
+import { loadConfig } from "../../utils/dataStore.js";
+import { buildEmbed } from "../../utils/embeds.js";
 import { getMessage } from "../../utils/personality.js";
 import { logAction } from "../admin/auditLog.js";
 import type { Warn } from "../../types/index.js";
-type WarnsStore = Record<string, Warn[]>;
 
-function loadWarns(): WarnsStore {
-  return readData<WarnsStore>("warns.json", {});
+// ─── SQLite helpers ───────────────────────────────────────────────────────────
+
+function ensureTable(): void {
+  const db = getDb();
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS warns (
+      id            TEXT PRIMARY KEY,
+      member_id     TEXT NOT NULL,
+      guild_id      TEXT NOT NULL,
+      reason        TEXT NOT NULL,
+      moderator_id  TEXT NOT NULL,
+      timestamp     TEXT NOT NULL,
+      active        INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS mod_logs (
+      id            TEXT PRIMARY KEY,
+      member_id     TEXT NOT NULL,
+      guild_id      TEXT NOT NULL,
+      action        TEXT NOT NULL,
+      reason        TEXT,
+      moderator_id  TEXT NOT NULL,
+      timestamp     TEXT NOT NULL,
+      duration      INTEGER
+    );
+  `);
 }
 
-function saveWarns(store: WarnsStore): void {
-  writeData("warns.json", store);
+/** Returns all active warns for a member in a guild. */
+export function getActiveWarns(memberId: string, guildId?: string): Warn[] {
+  ensureTable();
+  const db = getDb();
+  if (guildId) {
+    const rows = db
+      .prepare(
+        "SELECT * FROM warns WHERE member_id = ? AND guild_id = ? AND active = 1"
+      )
+      .all(memberId, guildId) as Array<Record<string, unknown>>;
+    return rows.map(rowToWarn);
+  }
+  // Fallback: no guild filter (backward compat)
+  const rows = db
+    .prepare("SELECT * FROM warns WHERE member_id = ? AND active = 1")
+    .all(memberId) as Array<Record<string, unknown>>;
+  return rows.map(rowToWarn);
 }
 
-/** Returns all active warns for a member. */
-export function getActiveWarns(memberId: string): Warn[] {
-  const store = loadWarns();
-  return (store[memberId] ?? []).filter((w) => w.active);
+function rowToWarn(row: Record<string, unknown>): Warn {
+  return {
+    id: row.id as string,
+    memberId: row.member_id as string,
+    reason: row.reason as string,
+    moderatorId: row.moderator_id as string,
+    timestamp: row.timestamp as string,
+    active: (row.active as number) === 1,
+  };
 }
+
+interface ModLogRow {
+  id: string;
+  member_id: string;
+  guild_id: string;
+  action: string;
+  reason: string | null;
+  moderator_id: string;
+  timestamp: string;
+  duration: number | null;
+}
+
+function getModLogs(memberId: string, guildId: string): ModLogRow[] {
+  ensureTable();
+  const db = getDb();
+  return db
+    .prepare(
+      "SELECT * FROM mod_logs WHERE member_id = ? AND guild_id = ? ORDER BY timestamp DESC"
+    )
+    .all(memberId, guildId) as ModLogRow[];
+}
+
+function insertModLog(
+  memberId: string,
+  guildId: string,
+  action: string,
+  reason: string | null,
+  moderatorId: string,
+  duration?: number
+): void {
+  ensureTable();
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO mod_logs (id, member_id, guild_id, action, reason, moderator_id, timestamp, duration)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    uuidv4(),
+    memberId,
+    guildId,
+    action,
+    reason ?? null,
+    moderatorId,
+    new Date().toISOString(),
+    duration ?? null
+  );
+}
+
+// ─── Core warn logic ──────────────────────────────────────────────────────────
 
 /**
  * Adds a warn to a member, notifies them by DM, logs to AuditLog,
- * and triggers auto-kick (3 warns) or auto-ban (5 warns in 30 days).
+ * and triggers automatic actions based on warn level:
+ *   1 warn  → DM de advertencia
+ *   3 warns → mute de 1 hora (timeout nativo)
+ *   5 warns → kick automático
  */
 export async function addWarn(
   memberId: string,
@@ -40,8 +135,8 @@ export async function addWarn(
   moderatorId: string,
   guild: Guild
 ): Promise<Warn> {
-  const store = loadWarns();
-  if (!store[memberId]) store[memberId] = [];
+  ensureTable();
+  const db = getDb();
 
   const warn: Warn = {
     id: uuidv4(),
@@ -52,12 +147,19 @@ export async function addWarn(
     active: true,
   };
 
-  store[memberId].push(warn);
-  saveWarns(store);
+  db.prepare(
+    `INSERT INTO warns (id, member_id, guild_id, reason, moderator_id, timestamp, active)
+     VALUES (?, ?, ?, ?, ?, ?, 1)`
+  ).run(warn.id, memberId, guild.id, reason, moderatorId, warn.timestamp);
 
-  const activeWarns = store[memberId].filter((w) => w.active);
+  // Insert mod_log entry
+  insertModLog(memberId, guild.id, "warn", reason, moderatorId);
+
+  const activeWarns = getActiveWarns(memberId, guild.id);
   const config = loadConfig(guild.id);
   const mode = config.personalityMode;
+
+  // Level 1: DM de advertencia
   try {
     const member = await guild.members.fetch(memberId);
     const dmMsg = getMessage(
@@ -84,21 +186,53 @@ export async function addWarn(
     guild
   );
 
-  // Auto-kick at 3 active warns
-  if (activeWarns.length >= 3) {
+  // Level 3: mute automático de 1 hora
+  if (activeWarns.length === 3) {
+    await triggerAutoMute(memberId, activeWarns.length, guild, mode);
+  }
+
+  // Level 5: kick automático
+  if (activeWarns.length >= 5) {
     await triggerAutoKick(memberId, activeWarns.length, guild, mode);
   }
 
-  // Auto-ban at 5 warns in last 30 days
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const recentWarns = store[memberId].filter(
-    (w) => w.active && new Date(w.timestamp) >= thirtyDaysAgo
-  );
-  if (recentWarns.length >= 5) {
-    await triggerAutoBan(memberId, recentWarns.length, guild, mode);
-  }
-
   return warn;
+}
+
+async function triggerAutoMute(
+  memberId: string,
+  warnCount: number,
+  guild: Guild,
+  mode: "friki" | "formal"
+): Promise<void> {
+  try {
+    const member = await guild.members.fetch(memberId);
+    if (!member.moderatable) return;
+
+    const ONE_HOUR_MS = 60 * 60 * 1000;
+    await member.timeout(ONE_HOUR_MS, `Auto-mute: acumuló ${warnCount} advertencias activas`);
+
+    try {
+      const msg =
+        mode === "formal"
+          ? `⏱️ Has recibido un silencio automático de 1 hora por acumular ${warnCount} advertencias.`
+          : `⏱️ ¡Ojo! Llevas ${warnCount} warns y te han silenciado 1 hora automáticamente. ¡Cuidado!`;
+      await member.send(msg);
+    } catch {
+      // DM disabled
+    }
+
+    insertModLog(memberId, guild.id, "mute", `Auto-mute por ${warnCount} warns`, "Sistema", ONE_HOUR_MS);
+    await logAction(
+      "automute",
+      `<@${memberId}>`,
+      "Sistema",
+      new Date().toISOString(),
+      guild
+    );
+  } catch {
+    // Member may have left or bot lacks permissions
+  }
 }
 
 async function triggerAutoKick(
@@ -120,6 +254,7 @@ async function triggerAutoKick(
       // DM disabled
     }
     await member.kick(`Auto-kick: acumuló ${warnCount} advertencias activas`);
+    insertModLog(memberId, guild.id, "kick", `Auto-kick por ${warnCount} warns`, "Sistema");
     await logAction(
       "autokick",
       `<@${memberId}>`,
@@ -132,37 +267,27 @@ async function triggerAutoKick(
   }
 }
 
-async function triggerAutoBan(
-  memberId: string,
-  warnCount: number,
-  guild: Guild,
-  mode: "friki" | "formal"
-): Promise<void> {
-  try {
-    const member = await guild.members.fetch(memberId);
-    const msg = getMessage(
-      "autoban",
-      { member: member.user.username, n: String(warnCount) },
-      mode
-    );
-    try {
-      await member.send(msg);
-    } catch {
-      // DM disabled
-    }
-    await guild.bans.create(memberId, {
-      reason: `Auto-ban: acumuló ${warnCount} warns en los últimos 30 días`,
-    });
-    await logAction(
-      "autoban",
-      `<@${memberId}>`,
-      "Sistema",
-      new Date().toISOString(),
-      guild
-    );
-  } catch {
-    // Member may have already left or been banned
-  }
+// ─── Export helpers ───────────────────────────────────────────────────────────
+
+function buildJsonExport(logs: ModLogRow[]): Buffer {
+  return Buffer.from(JSON.stringify(logs, null, 2), "utf-8");
+}
+
+function buildCsvExport(logs: ModLogRow[]): Buffer {
+  const header = "id,member_id,guild_id,action,reason,moderator_id,timestamp,duration";
+  const rows = logs.map((l) =>
+    [
+      l.id,
+      l.member_id,
+      l.guild_id,
+      l.action,
+      (l.reason ?? "").replace(/,/g, ";"),
+      l.moderator_id,
+      l.timestamp,
+      l.duration ?? "",
+    ].join(",")
+  );
+  return Buffer.from([header, ...rows].join("\n"), "utf-8");
 }
 
 // ─── Slash Commands ───────────────────────────────────────────────────────────
@@ -170,6 +295,7 @@ async function triggerAutoBan(
 export const data = new SlashCommandBuilder()
   .setName("warn")
   .setDescription("Gestión de advertencias")
+  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
   .addSubcommand((sub: SlashCommandSubcommandBuilder) =>
     sub
       .setName("add")
@@ -199,6 +325,24 @@ export const data = new SlashCommandBuilder()
       .addStringOption((opt: SlashCommandStringOption) =>
         opt.setName("id").setDescription("ID del warn a eliminar").setRequired(true)
       )
+  )
+  .addSubcommand((sub: SlashCommandSubcommandBuilder) =>
+    sub
+      .setName("modlogs")
+      .setDescription("Muestra el historial completo de moderación de un miembro")
+      .addUserOption((opt: SlashCommandUserOption) =>
+        opt.setName("member").setDescription("Miembro a consultar").setRequired(true)
+      )
+      .addStringOption((opt: SlashCommandStringOption) =>
+        opt
+          .setName("export")
+          .setDescription("Exportar historial como archivo adjunto")
+          .setRequired(false)
+          .addChoices(
+            { name: "json", value: "json" },
+            { name: "csv", value: "csv" }
+          )
+      )
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -209,6 +353,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const sub = interaction.options.getSubcommand();
 
+  // ── /warn add ──────────────────────────────────────────────────────────────
   if (sub === "add") {
     const target = interaction.options.getMember("member") as GuildMember | null;
     const reason = interaction.options.getString("razon", true);
@@ -227,7 +372,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       interaction.guild
     );
 
-    const activeWarns = getActiveWarns(target.id);
+    const activeWarns = getActiveWarns(target.id, interaction.guild.id);
     const embed = buildEmbed("warn", {
       title: "⚠️ Advertencia registrada",
       description: `Se ha advertido a ${target.user.username}`,
@@ -243,6 +388,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  // ── /warn list ─────────────────────────────────────────────────────────────
   if (sub === "list") {
     const target = interaction.options.getMember("member") as GuildMember | null;
     if (!target) {
@@ -250,7 +396,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
-    const warns = getActiveWarns(target.id);
+    const warns = getActiveWarns(target.id, interaction.guild.id);
 
     if (warns.length === 0) {
       await interaction.reply({
@@ -281,6 +427,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
+  // ── /warn remove ───────────────────────────────────────────────────────────
   if (sub === "remove") {
     const target = interaction.options.getMember("member") as GuildMember | null;
     const warnId = interaction.options.getString("id", true);
@@ -290,11 +437,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
-    const store = loadWarns();
-    const memberWarns = store[target.id] ?? [];
-    const warnIndex = memberWarns.findIndex((w) => w.id === warnId && w.active);
+    const db = getDb();
+    ensureTable();
 
-    if (warnIndex === -1) {
+    const row = db
+      .prepare("SELECT * FROM warns WHERE id = ? AND member_id = ? AND active = 1")
+      .get(warnId, target.id);
+
+    if (!row) {
       await interaction.reply({
         content: `No se encontró un warn activo con ID \`${warnId}\` para ese miembro.`,
         ephemeral: true,
@@ -302,9 +452,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
-    memberWarns[warnIndex].active = false;
-    store[target.id] = memberWarns;
-    saveWarns(store);
+    db.prepare("UPDATE warns SET active = 0 WHERE id = ?").run(warnId);
 
     await logAction(
       "unwarn",
@@ -322,5 +470,67 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         }),
       ],
     });
+    return;
+  }
+
+  // ── /warn modlogs ──────────────────────────────────────────────────────────
+  if (sub === "modlogs") {
+    const target = interaction.options.getMember("member") as GuildMember | null;
+    const exportFormat = interaction.options.getString("export") as "json" | "csv" | null;
+
+    if (!target) {
+      await interaction.reply({ content: "No se encontró al miembro.", ephemeral: true });
+      return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const logs = getModLogs(target.id, interaction.guild.id);
+
+    if (logs.length === 0) {
+      await interaction.editReply({
+        embeds: [
+          buildEmbed("success", {
+            title: "📋 Sin registros",
+            description: `${target.user.username} no tiene acciones de moderación registradas.`,
+          }),
+        ],
+      });
+      return;
+    }
+
+    // Build embed with up to 10 most recent entries
+    const recent = logs.slice(0, 10);
+    const fields = recent.map((l, i) => ({
+      name: `#${i + 1} — ${l.action.toUpperCase()} · ${new Date(l.timestamp).toLocaleDateString("es-ES")}`,
+      value: [
+        `**Razón:** ${l.reason ?? "Sin razón"}`,
+        `**Moderador:** <@${l.moderator_id}>`,
+        `**Fecha:** ${new Date(l.timestamp).toLocaleString("es-ES")}`,
+        l.duration ? `**Duración:** ${l.duration}ms` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      inline: false,
+    }));
+
+    const embed = buildEmbed("info", {
+      title: `📋 Historial de moderación — ${target.user.username}`,
+      description: `Total de acciones: **${logs.length}**${logs.length > 10 ? " (mostrando las 10 más recientes)" : ""}`,
+      fields,
+      footer: `ID: ${target.id}`,
+    });
+
+    // If export requested, attach file
+    if (exportFormat === "json" || exportFormat === "csv") {
+      const fileBuffer =
+        exportFormat === "json" ? buildJsonExport(logs) : buildCsvExport(logs);
+      const fileName = `modlogs-${target.id}-${Date.now()}.${exportFormat}`;
+      const attachment = new AttachmentBuilder(fileBuffer, { name: fileName });
+
+      await interaction.editReply({ embeds: [embed], files: [attachment] });
+    } else {
+      await interaction.editReply({ embeds: [embed] });
+    }
   }
 }

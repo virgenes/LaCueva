@@ -3,6 +3,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Build tools needed for native modules (better-sqlite3, etc.)
+RUN apk add --no-cache python3 make g++
+
 # Install all deps (including dev for build)
 COPY package*.json ./
 RUN npm ci

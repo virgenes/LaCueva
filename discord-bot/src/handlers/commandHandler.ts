@@ -42,7 +42,14 @@ export async function loadCommands(): Promise<Collection<string, SlashCommand>> 
   for (const file of files) {
     try {
       const mod = await import(pathToFileURL(file).href);
-      if (mod.data && mod.execute) {
+      // Support modules that export a `commands` array of {data, execute} pairs
+      if (Array.isArray(mod.commands)) {
+        for (const cmd of mod.commands as SlashCommand[]) {
+          if (cmd.data != null && cmd.execute != null) {
+            commands.set(cmd.data.name as string, cmd);
+          }
+        }
+      } else if (mod.data != null && mod.execute != null) {
         const command: SlashCommand = { data: mod.data, execute: mod.execute };
         commands.set(mod.data.name as string, command);
       }
