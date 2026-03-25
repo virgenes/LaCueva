@@ -216,6 +216,7 @@ export function registerEvents(
     "guildMemberRemove",
     async (member: GuildMember | PartialGuildMember) => {
       const { logAction } = await import("../modules/admin/auditLog.js");
+      const { goodbyeMessage } = await import("../modules/admin/welcome.js");
 
       const username = "user" in member ? member.user.username : "Desconocido";
 
@@ -226,6 +227,11 @@ export function registerEvents(
         new Date().toISOString(),
         member.guild
       );
+
+      // Send goodbye message — only if we have a full GuildMember
+      if ("user" in member && member.guild) {
+        await goodbyeMessage(member as GuildMember);
+      }
     }
   );
 
