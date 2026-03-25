@@ -76,7 +76,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
     - Cargar `.env`, inicializar config, registrar comandos, iniciar cliente, conectar al Bridge
     - _Requirements: 18.1, 18.4, 18.5_
 
-- [~] 4. Checkpoint — Verificar que el bot arranca y se conecta a Discord
+- [ ] 4. Checkpoint — Verificar que el bot arranca y se conecta a Discord
   - Asegurarse de que todos los tests pasan. Consultar al usuario si surgen dudas.
 
 
@@ -575,7 +575,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
     - **Property 48: Paginación cubre todos los items**
     - **Validates: Requirements 27.4**
 
-- [~] 21. Moderación extendida
+- [ ] 21. Moderación extendida
   - [ ] 21.1 Implementar `src/modules/moderation/timeout.ts`
     - Comandos `/timeout @user <duración> [razón]`, `/slowmode <segundos>`, `/lockdown canal|servidor|unlock`
     - Duración en formato `1d`, `2h`, `30m`; registro en AuditLog
@@ -598,7 +598,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
 - [ ] 22. Checkpoint — Verificar moderación extendida
   - Asegurarse de que todos los tests pasan. Consultar al usuario si surgen dudas.
 
-- [~] 23. Utilidades nuevas
+- [ ] 23. Utilidades nuevas
   - [ ] 23.1 Implementar `src/modules/utilities/reminders.ts`
     - Comando `/remindme <tiempo> <mensaje> [--repeat daily|weekly]`
     - Scheduler con `node-cron`; persistencia en SQLite; recarga al reiniciar
@@ -650,7 +650,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
 - [ ] 24. Checkpoint — Verificar utilidades nuevas
   - Asegurarse de que todos los tests pasan. Consultar al usuario si surgen dudas.
 
-- [~] 25. Entretenimiento extendido
+- [ ] 25. Entretenimiento extendido
   - [ ] 25.1 Extender `src/modules/entertainment/music.ts`
     - Añadir `/filter <bassboost|nightcore>` via FFmpeg args
     - Añadir `/lyrics` con Genius API
@@ -673,7 +673,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
     - **Property 22: Conservación de saldo en juegos de apuesta**
     - **Validates: Requirements 13.6, 14.10, 14.11**
 
-- [~] 26. Economía extendida
+- [ ] 26. Economía extendida
   - [ ] 26.1 Extender `src/modules/economy/economy.ts`
     - Añadir rachas en `/daily` con bonus proporcional
     - Añadir `/shop` con roles e items configurados por moderadores
@@ -691,7 +691,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
 - [ ] 27. Checkpoint — Verificar entretenimiento y economía extendidos
   - Asegurarse de que todos los tests pasan. Consultar al usuario si surgen dudas.
 
-- [~] 28. Administración — nuevos módulos
+- [ ] 28. Administración — nuevos módulos
   - [ ] 28.1 Implementar `src/modules/admin/giveaways.ts`
     - Comandos `/gstart <duración> <premio> [ganadores]`, `/gend <id>`, `/glist`
     - Embed con botón "Participar" y contador; selección aleatoria de ganadores al expirar
@@ -741,7 +741,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
     - **Property 47: Configuración de servidor es independiente por guild**
     - **Validates: Requirements 26.7**
 
-- [~] 29. Administración — módulos existentes extendidos
+- [ ] 29. Administración — módulos existentes extendidos
   - [ ] 29.1 Extender `src/modules/admin/autoRole.ts`
     - Soporte para múltiples autoroles (lista de IDs)
     - Añadir `/temprole @user <rol> <duración>` con revocación automática via `node-cron`
@@ -777,7 +777,7 @@ Implementación incremental del bot de Discord, el servidor Bridge y el componen
   - Añadir interfaces: `ModLog`, `Giveaway`, `LevelEntry`, `LevelReward`, `Reminder`, `Suggestion`, `TempRole`, `ServerConfig`, `ShopItem`, `AutoReplyConfig`
   - _Requirements: 27.6_
 
-- [~] 33. Actualizar página web con nuevos comandos
+- [ ] 33. Actualizar página web con nuevos comandos
   - Actualizar `src/pages/BotCommandsPage.tsx` con todos los nuevos comandos organizados por categoría
   - Categorías: Moderación, Utilidades, Entretenimiento, Economía, Administración, Giveaways, Niveles, Utilidades Avanzadas, Herramientas Dev
   - Para cada comando: nombre, descripción, sintaxis y permisos requeridos

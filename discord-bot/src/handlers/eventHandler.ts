@@ -63,6 +63,13 @@ export function registerEvents(
       return;
     }
 
+    // Voice Master buttons
+    if (interaction.isButton() && interaction.customId.startsWith("vc:")) {
+      const { handleVoiceMasterButton } = await import("../modules/admin/voiceMaster.js");
+      await handleVoiceMasterButton(interaction);
+      return;
+    }
+
     await handleInteraction(interaction, commands);
   });
 
@@ -250,5 +257,11 @@ export function registerEvents(
   client.on("channelDelete", async (channel: DMChannel | NonThreadGuildBasedChannel) => {
     const { onChannelDelete } = await import("../modules/admin/auditLog.js");
     await onChannelDelete(channel);
+  });
+
+  // ── voiceStateUpdate — Voice Master JTC ───────────────────────────────────
+  client.on("voiceStateUpdate", async (oldState, newState) => {
+    const { handleVoiceStateUpdate } = await import("../modules/admin/voiceMaster.js");
+    await handleVoiceStateUpdate(oldState, newState);
   });
 }
