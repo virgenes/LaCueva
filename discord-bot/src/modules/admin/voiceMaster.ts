@@ -116,20 +116,30 @@ export async function handleVoiceStateUpdate(
 
       tempChannels.set(member.id, tempVoice.id);
 
-      // Small delay so Discord fully registers the channel before moving the user
-      await new Promise((r) => setTimeout(r, 500));
-      await member.voice.setChannel(tempVoice);
+      // Generate an invite so the user joins naturally (avoids "Waiting for endpoint")
+      const invite = await tempVoice.createInvite({ maxAge: 300, maxUses: 1, unique: true });
+
+      // Send the invite via DM
+      try {
+        await member.send({
+          content: `🎮 ¡Tu canal de voz está listo! Haz clic aquí para unirte:\n${invite.url}\n\n*El enlace expira en 5 minutos.*`,
+        });
+      } catch {
+        // DMs disabled — send in the JTC channel as fallback (ephemeral not possible here)
+        const jtcCh = guild.channels.cache.get(JTC_VOICE_CHANNEL_ID) as TextChannel | undefined;
+        if (jtcCh) {
+          const msg = await jtcCh.send({
+            content: `<@${member.id}> tu canal está listo: ${invite.url}`,
+          });
+          // Auto-delete after 10s to keep the channel clean
+          setTimeout(() => msg.delete().catch(() => null), 10_000);
+        }
+      }
 
       // Send control panel in the voice channel's text chat
       const { embed, rows, attachment } = buildControlPanel();
-      // Update footer to show the owner
       embed.setFooter({ text: `Propietario: ${member.user.username}` });
-
-      await tempVoice.send({
-        embeds: [embed],
-        components: rows,
-        files: [attachment],
-      });
+      await tempVoice.send({ embeds: [embed], components: rows, files: [attachment] });
     } catch (err) {
       console.error("[voiceMaster] Error creating temp channel:", err);
     }
