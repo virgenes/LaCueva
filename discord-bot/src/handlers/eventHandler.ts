@@ -70,6 +70,20 @@ export function registerEvents(
       return;
     }
 
+    // Voice Master modals
+    if (interaction.isModalSubmit() && interaction.customId.startsWith("vcm:")) {
+      const { handleVoiceMasterModal } = await import("../modules/admin/voiceMaster.js");
+      await handleVoiceMasterModal(interaction);
+      return;
+    }
+
+    // Voice Master select menus
+    if (interaction.isStringSelectMenu() && interaction.customId.startsWith("vcm:")) {
+      const { handleVoiceMasterSelect } = await import("../modules/admin/voiceMaster.js");
+      await handleVoiceMasterSelect(interaction);
+      return;
+    }
+
     await handleInteraction(interaction, commands);
   });
 
