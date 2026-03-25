@@ -96,6 +96,7 @@ export async function handleVoiceStateUpdate(
         name: `🎮 ${member.user.username}`,
         type: ChannelType.GuildVoice,
         parent: category ?? undefined,
+        rtcRegion: undefined, // auto region — Discord picks the best one
         permissionOverwrites: [
           {
             id: member.id,
@@ -114,6 +115,9 @@ export async function handleVoiceStateUpdate(
       }) as VoiceChannel;
 
       tempChannels.set(member.id, tempVoice.id);
+
+      // Small delay so Discord fully registers the channel before moving the user
+      await new Promise((r) => setTimeout(r, 500));
       await member.voice.setChannel(tempVoice);
 
       // Send control panel in the voice channel's text chat
