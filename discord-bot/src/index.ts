@@ -30,7 +30,10 @@ async function main(): Promise<void> {
 
   console.log("[bot] Attempting Discord login...");
   try {
-    await client.login(config.DISCORD_TOKEN);
+    const loginTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Login timeout after 30s — possible WebSocket block")), 30000)
+    );
+    await Promise.race([client.login(config.DISCORD_TOKEN), loginTimeout]);
     console.log("[bot] Login call completed");
   } catch (err) {
     console.error("[bot] Login FAILED:", err);
