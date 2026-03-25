@@ -21,6 +21,7 @@ export const config = {
   BRIDGE_PORT: parseInt(process.env["PORT"] ?? optionalEnv("BRIDGE_PORT", "3001") ?? "3001", 10),
   BRIDGE_SECRET: optionalEnv("BRIDGE_SECRET"),
   BRIDGE_CORS_ORIGIN: optionalEnv("BRIDGE_CORS_ORIGIN"),
+  BOT_WORKER_URL: optionalEnv("BOT_WORKER_URL"),
   YOUTUBE_API_KEY: optionalEnv("YOUTUBE_API_KEY"),
   TENOR_API_KEY: optionalEnv("TENOR_API_KEY"),
   REDDIT_CLIENT_ID: optionalEnv("REDDIT_CLIENT_ID"),

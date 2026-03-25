@@ -1,10 +1,29 @@
 services:
+  # Web Service — bridge HTTP + WebSocket (no Discord connection)
   - type: web
-    name: lacueva-bot
+    name: lacueva-bridge
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
     healthCheckPath: /api/messages
+    envVars:
+      - key: BRIDGE_CORS_ORIGIN
+        value: "*"
+      - key: NODE_ENV
+        value: production
+      - key: BOT_WORKER_URL
+        value: "" # not needed on bridge side
+      - key: GUILD_ID
+        sync: false
+      - key: DISCORD_TOKEN
+        value: "placeholder" # bridge doesn't need real token
+
+  # Background Worker — Discord bot only (no HTTP port needed)
+  - type: worker
+    name: lacueva-bot-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile.worker
+    plan: free
     envVars:
       - key: DISCORD_TOKEN
         sync: false
@@ -12,7 +31,9 @@ services:
         sync: false
       - key: GUILD_ID
         sync: false
-      - key: BRIDGE_CORS_ORIGIN
-        value: "*"
+      - key: BOT_WORKER_URL
+        value: "https://lacueva-g1uc.onrender.com"
+      - key: BRIDGE_SECRET
+        sync: false
       - key: NODE_ENV
         value: production
