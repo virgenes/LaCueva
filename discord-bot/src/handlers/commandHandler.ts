@@ -53,10 +53,12 @@ export async function loadCommands(): Promise<Collection<string, SlashCommand>> 
         const command: SlashCommand = { data: mod.data, execute: mod.execute };
         commands.set(mod.data.name as string, command);
       }
-    } catch {
-      // Skip files that fail to import
+    } catch (err) {
+      console.error(`[commandHandler] Failed to load ${file}:`, err);
     }
   }
+
+  console.log(`[commandHandler] Loaded ${commands.size} command(s): ${[...commands.keys()].join(", ")}`);
 
   return commands;
 }
