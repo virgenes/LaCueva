@@ -37,14 +37,11 @@ function buildControlPanel(userId: string): {
   const attachment = new AttachmentBuilder(BANNER_PATH, { name: "canvas.png" });
 
   const embed = new EmbedBuilder()
-    .setColor(0xe91e8c) // fucsia accent
+    .setColor(0xe91e8c)
     .setTitle("🔊 VOICE CUSTOM")
-    .setDescription(
-      "> ⚠️ No usar nombres de canal con palabras explícitas, referencias sexuales, discurso de odio o insultos — de lo contrario serás sancionado permanentemente. 🚫\n\n" +
-      "Usa los botones de abajo para personalizar tu canal de voz temporal."
-    )
+    .setDescription("> ⚠️ No usar nombres de canal con palabras explícitas, referencias sexuales, discurso de odio o insultos — de lo contrario serás sancionado permanentemente. 🚫")
     .setImage("attachment://canvas.png")
-    .setFooter({ text: `Panel de control · Propietario: <@${userId}>` })
+    .setFooter({ text: `Propietario: ${userId}` })
     .setTimestamp();
 
   const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -114,12 +111,20 @@ export async function handleVoiceStateUpdate(
       // Move member to their new channel
       await member.voice.setChannel(tempVoice);
 
-      // Send control panel to the editor text channel
+      // Notify the member by DM (private, no noise in chat)
+      try {
+        await member.send({
+          content: `🎮 ¡Tu canal de voz **${tempVoice.name}** está listo! Dirígete al canal <#${EDITOR_TEXT_CHANNEL_ID}> para personalizarlo con los botones del panel.`,
+        });
+      } catch {
+        // DMs disabled — fail silently
+      }
+
+      // Send control panel to the editor text channel (no mention, general for everyone)
       const textChannel = guild.channels.cache.get(EDITOR_TEXT_CHANNEL_ID) as TextChannel | undefined;
       if (textChannel) {
         const { embed, rows, attachment } = buildControlPanel(member.id);
         await textChannel.send({
-          content: `<@${member.id}> tu canal de voz está listo. Aquí tienes el panel de control:`,
           embeds: [embed],
           components: rows,
           files: [attachment],
@@ -382,20 +387,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     const embed = new EmbedBuilder()
       .setColor(0xe91e8c)
-      .setTitle("🔊 VOICE CUSTOM — Panel Maestro")
-      .setDescription(
-        "> ⚠️ No usar nombres de canal con palabras explícitas, referencias sexuales, discurso de odio o insultos — de lo contrario serás sancionado permanentemente. 🚫\n\n" +
-        `Únete al canal de voz <#${JTC_VOICE_CHANNEL_ID}> para crear tu propio canal de voz temporal.\n\n` +
-        "El panel de control aparecerá aquí automáticamente con los siguientes botones:\n\n" +
-        "✏️ **NOMBRE** · 👥 **LÍMITE** · 🔒 **PRIVACIDAD** · ✅ **PERMITIR** · ❌ **DES-PERMITIR**\n" +
-        "📨 **INVITAR** · 👢 **EXPULSAR** · 🚫 **BLOQUEAR** · 🔓 **DES-BLOQUEAR** · 🔄 **TRANSFERIR** · 🗑️ **ELIMINAR**"
-      )
+      .setTitle("🔊 VOICE CUSTOM")
+      .setDescription("> ⚠️ No usar nombres de canal con palabras explícitas, referencias sexuales, discurso de odio o insultos — de lo contrario serás sancionado permanentemente. 🚫")
       .setImage("attachment://canvas.png")
-      .setFooter({ text: `Panel maestro configurado por ${interaction.user.username} · /setup-editorvoice` })
+      .setFooter({ text: "Únete al canal de voz para crear tu propio canal temporal" })
       .setTimestamp();
 
     await channel.send({
-      content: `✅ Panel de control de voz personalizado configurado con éxito. Ejecutado por <@${interaction.user.id}>.`,
       embeds: [embed],
       files: [attachment],
     });
