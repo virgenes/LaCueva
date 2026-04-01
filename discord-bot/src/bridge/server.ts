@@ -8,7 +8,7 @@ import { sanitize } from "../utils/sanitize.js";
 import { loadConfig } from "../utils/dataStore.js";
 import { logger } from "../utils/logger.js";
 import { addMessage, getMessages } from "./messageStore.js";
-import { rateLimiter } from "./rateLimiter.js";
+import { rateLimiter, isIpBanned, getIp } from "./rateLimiter.js";
 import { config } from "../config.js";
 
 const MAX_CONTENT_LENGTH = 2000;
@@ -43,6 +43,13 @@ export function createBridgeServer(): ReturnType<typeof createServer> {
 
   app.options("*", (_req, res) => res.sendStatus(204));
   app.use(express.json({ limit: "8kb" }));
+
+  // GET /api/status (Check if IP is banned)
+  app.get("/api/status", (req, res) => {
+    const ip = getIp(req);
+    const banned = isIpBanned(ip);
+    res.json({ banned });
+  });
 
   // GET /api/messages
   app.get("/api/messages", (req, res) => {
