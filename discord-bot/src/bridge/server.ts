@@ -102,6 +102,13 @@ export function createBridgeServer(): ReturnType<typeof createServer> {
       return;
     }
 
+    // Block any URLs
+    const urlRegex = /(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/gi;
+    if (urlRegex.test(cleanContent)) {
+      res.status(400).json({ error: "No se permiten enlaces o videos en el chat." });
+      return;
+    }
+
     const msg: BridgeMessage = {
       id: uuidv4(),
       author: cleanAuthor,
