@@ -28,7 +28,7 @@ export const SnakeGame: React.FC<SnakeGameProps> = ({ onClose }) => {
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
-  const gameLoopRef = useRef<NodeJS.Timeout | null>(null);
+  const gameLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const directionRef = useRef(direction);
 
   const isSpanish = language === 'es';

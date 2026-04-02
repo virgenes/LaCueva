@@ -18,7 +18,7 @@ export const ReactionGame: React.FC<ReactionGameProps> = ({ onClose }) => {
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [attempts, setAttempts] = useState<number[]>([]);
   const startTimeRef = useRef<number>(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSpanish = language === 'es';
 

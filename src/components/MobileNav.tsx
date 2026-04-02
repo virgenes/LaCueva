@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Gamepad2, Music, Palette, Settings, Menu, X, Joystick } from 'lucide-react';
+import { Home, Gamepad2, Music, Palette, Settings, Menu, X, Joystick, Folder } from 'lucide-react';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { SettingsMenu } from './SettingsMenu';
 import { ExternalLinkDialog } from './ExternalLinkDialog';
@@ -11,6 +11,7 @@ import logoFurros from '@/assets/logo-furros.jpg';
 const navItems = [
   { icon: Home, label: 'Inicio', path: '/' },
   { icon: Gamepad2, label: 'Juegos', path: '/juegos' },
+  { icon: Folder, label: 'Proyectos', path: '/proyectos' },
   { icon: Music, label: 'Música', path: '/musica' },
   { icon: Palette, label: 'Arte', path: '/arte' },
 ];

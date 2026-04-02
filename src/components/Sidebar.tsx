@@ -10,7 +10,7 @@ import { ExternalLinkDialog } from './ExternalLinkDialog';
 import { MiniGamesHub } from './minigames/MiniGamesHub';
 import { cn } from '@/lib/utils';
 import logoFurros from '@/assets/logo-furros.jpg';
-import { Settings, Gamepad2 } from 'lucide-react';
+import { Settings, Gamepad2, Folder } from 'lucide-react';
 
 interface SidebarProps {
   className?: string;
@@ -19,10 +19,11 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const navigate = useNavigate();
   const { playClick, playHover, playMenuOpen } = useSoundEffects();
-  const { t } = useSettings();
+  const { t, language } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [miniGamesOpen, setMiniGamesOpen] = useState(false);
   const [externalLink, setExternalLink] = useState<{ isOpen: boolean; url: string }>({ isOpen: false, url: '' });
+  const isSpanish = language === 'es';
 
   const menuItems = [
     { icon: 'games' as const, label: t('nav.games'), path: '/juegos' },
@@ -92,6 +93,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
               </button>
             ))}
             
+            {/* Projects Button */}
+            <button
+              onClick={() => handleNavigation('/proyectos')}
+              onMouseEnter={playHover}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-sm
+                transition-all duration-150 group border-2 border-transparent
+                hover:bg-muted/50 hover:border-red-500 hover:-translate-x-1"
+            >
+              <span className="w-8 h-8 rounded-sm flex items-center justify-center bg-red-600 shadow-pixel group-hover:animate-wiggle">
+                <Folder size={14} className="text-white" />
+              </span>
+              <span className="font-pixel text-[9px] text-foreground group-hover:text-primary transition-colors">
+                {isSpanish ? 'Proyectos' : 'Projects'}
+              </span>
+            </button>
+
             {/* Settings Button - Ahora usa t() correctamente */}
             <button
               onClick={() => { playMenuOpen(); setSettingsOpen(true); }}

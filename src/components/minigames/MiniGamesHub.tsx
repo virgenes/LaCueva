@@ -79,7 +79,7 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
       onClick={onClose}
     >
       <div 
-        className="game-card p-4 sm:p-6 max-w-md w-full max-h-[85vh] animate-bounce-in"
+        className="game-card p-4 sm:p-6 max-w-md w-full max-h-[92vh] animate-bounce-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -98,7 +98,7 @@ export const MiniGamesHub: React.FC<MiniGamesHubProps> = ({ isOpen, onClose }) =
         </div>
 
         {/* Games list - Scrollable */}
-        <ScrollArea className="h-[55vh] sm:h-auto sm:max-h-[50vh] pr-2">
+        <ScrollArea className="h-[60vh] sm:h-auto sm:max-h-[65vh] pr-2">
           <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 sm:gap-3">
             {games.map((game) => (
               <button
