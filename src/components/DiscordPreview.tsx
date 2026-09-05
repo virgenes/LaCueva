@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Wifi, WifiOff, ExternalLink } from "lucide-react";
 import { GameCard } from "./GameCard";
 import { PixelEmoji } from "./PixelEmoji";
-import { getBridgeUrl, getWsUrl } from "@/lib/bridgeConfig";
+import { getBridgeUrl, getWsUrl, invalidateBridgeUrl } from "@/lib/bridgeConfig";
 
 interface BridgeMessage {
   id: string;
@@ -13,14 +13,12 @@ interface BridgeMessage {
   timestamp: string;
 }
 
-const BRIDGE_URL = import.meta.env.VITE_BRIDGE_URL ?? "http://localhost:3001";
-const WS_URL = BRIDGE_URL.replace(/^http/, "ws");
-const RECONNECT_DELAY = 5000;
+const RECONNECT_DELAY = 4000;
 
 // Demo messages shown when bridge is offline
 const DEMO_MESSAGES: BridgeMessage[] = [
   { id: "d1", author: "Virgen Supremo", content: "¡Bienvenido a La Cueva! 🎮", source: "discord", timestamp: new Date(Date.now() - 120000).toISOString() },
-  { id: "d2", author: "Anónimo", content: "Hola desde la web 👋", source: "web", timestamp: new Date(Date.now() - 60000).toISOString() },
+  { id: "d2", author: "Anónimo", content: "Hola desde la web 🌐", source: "web", timestamp: new Date(Date.now() - 60000).toISOString() },
   { id: "d3", author: "CaveBot", content: "El chat está activo cuando el bot está online.", source: "discord", timestamp: new Date(Date.now() - 10000).toISOString() },
 ];
 
@@ -42,36 +40,48 @@ export function DiscordPreview() {
       .catch(() => setMessages(DEMO_MESSAGES));
   }, []);
 
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    const ws = new WebSocket(`${WS_URL}/api/messages`);
-    wsRef.current = ws;
+  const connect = useCallback(async () => {
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
-    ws.onopen = () => {
-      setConnected(true);
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
+    try {
+      const bridgeUrl = await getBridgeUrl();
+      const wsUrl = getWsUrl(bridgeUrl);
+      const ws = new WebSocket(`${wsUrl}/api/messages`);
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const msg: BridgeMessage = JSON.parse(event.data as string);
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg].slice(-5); // keep last 5
-        });
-      } catch { /* ignore */ }
-    };
+      ws.onopen = () => {
+        setConnected(true);
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      };
 
-    ws.onclose = () => {
+      ws.onmessage = (event) => {
+        try {
+          const msg: BridgeMessage = JSON.parse(event.data as string);
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg].slice(-5); // keep last 5
+          });
+        } catch { /* ignore */ }
+      };
+
+      ws.onclose = () => {
+        setConnected(false);
+        invalidateBridgeUrl();
+        reconnectTimer.current = setTimeout(() => { void connect(); }, RECONNECT_DELAY);
+      };
+
+      ws.onerror = () => ws.close();
+    } catch {
       setConnected(false);
-      reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
-    };
-
-    ws.onerror = () => ws.close();
+      invalidateBridgeUrl();
+      reconnectTimer.current = setTimeout(() => { void connect(); }, RECONNECT_DELAY);
+    }
   }, []);
 
   useEffect(() => {
-    connect();
+    void connect();
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
@@ -104,7 +114,7 @@ export function DiscordPreview() {
         </div>
       </div>
 
-      {/* Messages — read only, last 5 */}
+      {/* Messages - read only, last 5 */}
       <div className="space-y-1 mb-3 max-h-[160px] overflow-hidden relative">
         {displayMessages.map((msg) => (
           <div
@@ -118,7 +128,7 @@ export function DiscordPreview() {
             }}
           >
             <span style={{ fontSize: "12px", flexShrink: 0 }}>
-              {msg.source === "discord" ? "🎮" : "🌐"}
+              {msg.source === "discord" ? "💬" : "🌐"}
             </span>
             <div className="min-w-0 flex-1">
               <span

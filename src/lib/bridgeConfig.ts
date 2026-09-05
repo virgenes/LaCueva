@@ -2,41 +2,56 @@ export const DEFAULT_BRIDGE_URL = "http://localhost:3001";
 export const GITHUB_TUNNEL_URL = "https://raw.githubusercontent.com/virgenes/LaCueva/main/tunnel-url.txt";
 
 let cachedBridgeUrl: string | null = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 30000; // 30s cache para no saturar raw.githubusercontent
 
-export async function getBridgeUrl(): Promise<string> {
-  if (cachedBridgeUrl) return cachedBridgeUrl;
+export function invalidateBridgeUrl(): void {
+  cachedBridgeUrl = null;
+  lastFetchTime = 0;
+}
 
-  const isGitHubPages = window.location.hostname.includes("github.io");
+export async function getBridgeUrl(forceRefresh: boolean = false): Promise<string> {
+  const isLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
 
-  // 1. Si estamos en local (localhost, 127.0.0.1, etc.) usamos la URL local
-  if (!isGitHubPages) {
-    const envUrl = import.meta.env.VITE_BRIDGE_URL;
-    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
-      cachedBridgeUrl = envUrl;
-      return envUrl;
-    }
-    // Si estamos en localhost directo
-    cachedBridgeUrl = window.location.origin.includes("3001") ? window.location.origin : DEFAULT_BRIDGE_URL;
+  // Si estamos en localhost directo (desarrollo local en la misma PC)
+  if (isLocalhost) {
+    return window.location.origin.includes("3001")
+      ? window.location.origin
+      : (import.meta.env.VITE_BRIDGE_URL ?? DEFAULT_BRIDGE_URL);
+  }
+
+  // Si estamos en cualquier dispositivo externo (móvil, tablet, GitHub Pages, etc.)
+  const now = Date.now();
+  if (!forceRefresh && cachedBridgeUrl && now - lastFetchTime < CACHE_TTL_MS) {
     return cachedBridgeUrl;
   }
 
-  // 2. Si estamos en GitHub Pages, obtenemos la URL activa del túnel de Cloudflare
   try {
-    const res = await fetch(`${GITHUB_TUNNEL_URL}?t=${Date.now()}`);
+    const res = await fetch(`${GITHUB_TUNNEL_URL}?_t=${now}`, {
+      cache: "no-store",
+    });
     if (res.ok) {
       const url = (await res.text()).trim();
       if (url.startsWith("https://")) {
         cachedBridgeUrl = url;
+        lastFetchTime = now;
         return url;
       }
     }
-  } catch {
-    // Si falla la lectura, fallback a env
+  } catch (err) {
+    console.warn("[bridge] Error al consultar tunnel-url.txt:", err);
   }
 
+  // Fallback si la petición falla
+  if (cachedBridgeUrl) return cachedBridgeUrl;
   return import.meta.env.VITE_BRIDGE_URL ?? DEFAULT_BRIDGE_URL;
 }
 
 export function getWsUrl(httpUrl: string): string {
-  return httpUrl.replace(/^http/, "ws");
+  if (httpUrl.startsWith("https://")) {
+    return httpUrl.replace(/^https:\/\//, "wss://");
+  }
+  return httpUrl.replace(/^http:\/\//, "ws://");
 }

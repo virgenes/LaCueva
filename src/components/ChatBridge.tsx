@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Send, Wifi, WifiOff, MessageSquare } from "lucide-react";
-import { getBridgeUrl, getWsUrl } from "@/lib/bridgeConfig";
+import { getBridgeUrl, getWsUrl, invalidateBridgeUrl } from "@/lib/bridgeConfig";
 
 interface BridgeMessage {
   id: string;
@@ -11,10 +11,17 @@ interface BridgeMessage {
   avatarUrl?: string;
 }
 
-const BRIDGE_URL = import.meta.env.VITE_BRIDGE_URL ?? "http://localhost:3001";
-const WS_URL = BRIDGE_URL.replace(/^http/, "ws");
 const MAX_LENGTH = 2000;
-const RECONNECT_DELAY = 5000;
+const RECONNECT_DELAY = 4000;
+
+function formatTime(iso: string) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
 
 export function ChatBridge() {
   const [messages, setMessages] = useState<BridgeMessage[]>([]);
@@ -36,40 +43,51 @@ export function ChatBridge() {
       .catch(() => {/* bridge might not be running yet */});
   }, []);
 
-  // WebSocket connection with auto-reconnect
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  // WebSocket connection with auto-reconnect using dynamic tunnel URL
+  const connect = useCallback(async () => {
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
-    const ws = new WebSocket(`${WS_URL}/api/messages`);
-    wsRef.current = ws;
+    try {
+      const bridgeUrl = await getBridgeUrl();
+      const wsUrl = getWsUrl(bridgeUrl);
+      const ws = new WebSocket(`${wsUrl}/api/messages`);
+      wsRef.current = ws;
 
-    ws.onopen = () => {
-      setConnected(true);
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-    };
+      ws.onopen = () => {
+        setConnected(true);
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      };
 
-    ws.onmessage = (event) => {
-      try {
-        const msg: BridgeMessage = JSON.parse(event.data as string);
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-      } catch {/* ignore malformed */}
-    };
+      ws.onmessage = (event) => {
+        try {
+          const msg: BridgeMessage = JSON.parse(event.data as string);
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        } catch {/* ignore malformed */}
+      };
 
-    ws.onclose = () => {
+      ws.onclose = () => {
+        setConnected(false);
+        invalidateBridgeUrl();
+        reconnectTimer.current = setTimeout(() => { void connect(); }, RECONNECT_DELAY);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    } catch {
       setConnected(false);
-      reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
-    };
-
-    ws.onerror = () => {
-      ws.close();
-    };
+      invalidateBridgeUrl();
+      reconnectTimer.current = setTimeout(() => { void connect(); }, RECONNECT_DELAY);
+    }
   }, []);
 
   useEffect(() => {
-    connect();
+    void connect();
     return () => {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       wsRef.current?.close();
@@ -113,7 +131,7 @@ export function ChatBridge() {
         setInput("");
       }
     } catch {
-      setError("No se pudo conectar con el bridge. ¿Está el servidor activo?");
+      setError("No se pudo conectar con el bridge. ¿Está el bot activo?");
     } finally {
       setSending(false);
     }
@@ -126,16 +144,11 @@ export function ChatBridge() {
     }
   };
 
-  const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-  };
-
   return (
     <div
-      className="flex flex-col h-full max-h-[600px] w-full"
+      className="flex flex-col h-[520px] w-full"
       style={{
-        background: "linear-gradient(180deg, #0d0d1a 0%, #0a0a14 100%)",
+        background: "#0d0d1a",
         border: "2px solid #7289da",
         borderRadius: "4px",
         fontFamily: '"VT323", monospace',
@@ -188,7 +201,7 @@ export function ChatBridge() {
             className="text-center py-8 opacity-40"
             style={{ fontSize: "16px", color: "#7289da" }}
           >
-            [ sin mensajes aún — sé el primero, héroe ]
+            [ sin mensajes aún - sé el primero, héroe ]
           </div>
         )}
         {messages.map((msg) => (
@@ -228,7 +241,7 @@ export function ChatBridge() {
                   borderRadius: "2px",
                 }}
               >
-                {msg.source === "discord" ? "🎮" : "🌐"}
+                {msg.source === "discord" ? "💬" : "🌐"}
               </div>
             )}
 
@@ -378,7 +391,7 @@ export function ChatBridge() {
               fontFamily: '"VT323", monospace',
             }}
           >
-            ⚠ {error}
+            ⚠️ {error}
           </p>
         )}
       </div>
