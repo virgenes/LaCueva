@@ -1,1 +1,1 @@
-https://test-init.trycloudflare.com
+https://gem-beaches-delayed-soa.trycloudflare.com

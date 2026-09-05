@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Wifi, WifiOff, ExternalLink } from "lucide-react";
 import { GameCard } from "./GameCard";
 import { PixelEmoji } from "./PixelEmoji";
+import { getBridgeUrl, getWsUrl } from "@/lib/bridgeConfig";
 
 interface BridgeMessage {
   id: string;
@@ -33,7 +34,7 @@ export function DiscordPreview() {
 
   // Fetch history
   useEffect(() => {
-    fetch(`${BRIDGE_URL}/api/messages?limit=10`)
+    getBridgeUrl().then((url) => fetch(`${url}/api/messages?limit=10`))
       .then((r) => r.json())
       .then((data: BridgeMessage[]) => {
         if (Array.isArray(data) && data.length > 0) setMessages(data.slice(-5));

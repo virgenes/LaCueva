@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Send, Wifi, WifiOff, MessageSquare } from "lucide-react";
+import { getBridgeUrl, getWsUrl } from "@/lib/bridgeConfig";
 
 interface BridgeMessage {
   id: string;
@@ -29,7 +30,7 @@ export function ChatBridge() {
 
   // Fetch message history on mount
   useEffect(() => {
-    fetch(`${BRIDGE_URL}/api/messages?limit=50`)
+    getBridgeUrl().then((url) => fetch(`${url}/api/messages?limit=50`))
       .then((r) => r.json())
       .then((data: BridgeMessage[]) => setMessages(data))
       .catch(() => {/* bridge might not be running yet */});
@@ -94,7 +95,8 @@ export function ChatBridge() {
     setSending(true);
 
     try {
-      const res = await fetch(`${BRIDGE_URL}/api/messages`, {
+      const bridgeUrl = await getBridgeUrl();
+      const res = await fetch(`${bridgeUrl}/api/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ author: trimmedAuthor, content: trimmedContent }),

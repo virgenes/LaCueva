@@ -21,7 +21,7 @@ import RPGPage from "./pages/RPGPage";
 import DiscordPage from "./pages/DiscordPage";
 import BotCommandsPage from "./pages/BotCommandsPage";
 
-const BRIDGE_URL = import.meta.env.VITE_BRIDGE_URL ?? "http://localhost:3001";
+import { getBridgeUrl } from "@/lib/bridgeConfig";
 
 const queryClient = new QueryClient();
 
@@ -29,7 +29,7 @@ const IpBlocker = ({ children }: { children: React.ReactNode }) => {
   const [banned, setBanned] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetch(`${BRIDGE_URL}/api/status`)
+    getBridgeUrl().then(url => fetch(`${url}/api/status`))
       .then(res => res.json())
       .then(data => {
         setBanned(!!data.banned);
@@ -112,3 +112,4 @@ const App = () => (
 );
 
 export default App;
+
